@@ -1,0 +1,21 @@
+{
+  "name": "@phonelogai/database",
+  "version": "1.0.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "scripts": {
+    "setup": "node scripts/setup.js",
+    "migrate": "node scripts/migrate.js",
+    "seed": "node scripts/seed.js",
+    "reset": "node scripts/reset.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.38.0",
+    "@phonelogai/types": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.1.6",
+    "@types/node": "^20.5.0",
+    "supabase": "^1.106.0"
+  }
+}

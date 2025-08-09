@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "strict": true,
+    "paths": {
+      "@phonelogai/shared": ["../../packages/shared/src"],
+      "@phonelogai/types": ["../../packages/types/src"]
+    }
+  }
+}

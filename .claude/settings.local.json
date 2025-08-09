@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(find:*)",
+      "Bash(npm run lint)",
+      "Bash(npm run type-check:*)",
+      "Bash(npm install)",
+      "Bash(npm install:*)",
+      "Bash(npx eslint:*)",
+      "Bash(rm:*)",
+      "Bash(npm ls:*)",
+      "Bash(ls:*)",
+      "Bash(npm run build:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(npx expo:*)",
+      "Bash(npm run test:*)",
+      "Bash(npm run:*)",
+      "Bash(touch:*)",
+      "Bash(python3 -m phonelogai_workers.performance.performance_test_suite:*)",
+      "Bash(npx tsc:*)",
+      "Bash(mv:*)",
+      "Bash(npx turbo run lint:*)",
+      "Bash(npx turbo run type-check:*)",
+      "Bash(npx turbo run build:*)",
+      "Bash(chmod:*)",
+      "Bash(sed:*)"
+    ],
+    "deny": []
+  }
+}
