@@ -186,7 +186,8 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=     # Public anon key
 SUPABASE_SERVICE_ROLE_KEY=         # Service role key (server-side only)
 
 # Optional integrations
-OPENAI_API_KEY=                    # For NLQ features
+OPENROUTER_API_KEY=                # For NLQ features via OpenRouter
+OPENROUTER_MODEL=openai/gpt-4o-mini # Optional model selection
 STRIPE_SECRET_KEY=                 # For billing features
 REDIS_URL=                         # For caching/queuing
 ```

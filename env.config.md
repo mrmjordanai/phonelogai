@@ -11,7 +11,8 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzd
 SUPABASE_SERVICE_ROLE_KEY=# Get from Supabase dashboard
 
 # Optional Services (can be added later)
-OPENAI_API_KEY=
+OPENROUTER_API_KEY=
+OPENROUTER_MODEL=openai/gpt-4o-mini
 REDIS_URL=redis://localhost:6379
 STRIPE_SECRET_KEY=
 
@@ -37,14 +38,15 @@ Copy the following to root `.env`:
 ```env
 DATABASE_URL=postgresql://postgres.[project-ref]:[password]@aws-0-us-east-1.pooler.supabase.com:6543/postgres
 REDIS_URL=redis://localhost:6379
-OPENAI_API_KEY=
+OPENROUTER_API_KEY=
+OPENROUTER_MODEL=openai/gpt-4o-mini
 ```
 
 ## Important Notes
 
 1. **Service Role Key**: Get this from your Supabase project dashboard under Settings > API
 2. **Database URL**: Get the connection string from Supabase dashboard under Settings > Database
-3. **OpenAI API Key**: Required for NLQ features (optional for initial setup)
+3. **OpenRouter API Key**: Required for NLQ features (optional for initial setup)
 4. **Redis**: Required for caching and job queue (optional for initial setup)
 
 ## Setup Instructions

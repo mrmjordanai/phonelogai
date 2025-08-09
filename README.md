@@ -8,7 +8,7 @@ A comprehensive platform for analyzing call and SMS data with AI-powered insight
 - **Frontend**: React Native + Expo (mobile), Next.js + React (web)
 - **Backend**: Supabase (Postgres + pgvector + Auth + Storage)
 - **Database**: PostgreSQL with Row-Level Security (RLS)
-- **AI/ML**: Python workers with OpenAI integration
+- **AI/ML**: OpenRouter LLM integration (multi-model) + Python workers
 - **Cache/Queue**: Redis
 - **Billing**: Stripe
 - **Deployment**: Vercel (web), EAS (mobile)

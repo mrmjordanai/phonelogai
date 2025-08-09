@@ -24,7 +24,7 @@
 
 #### Query Endpoint (`apps/web/src/app/api/nlq/query/route.ts`)
 - Pattern-based SQL generation from natural language
-- Optional OpenAI integration (when API key configured)
+- OpenRouter integration (multi-model; when API key configured)
 - Demo mode for testing without authentication
 - Streaming response support
 - Safe SQL execution with parameterization
@@ -57,7 +57,8 @@ Supported query patterns:
 # In apps/web/.env.local:
 NEXT_PUBLIC_SUPABASE_URL=your_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_key
-OPENAI_API_KEY=your_openai_key # Optional
+OPENROUTER_API_KEY=your_openrouter_key # Optional
+OPENROUTER_MODEL=openai/gpt-4o-mini    # Optional, can be any OpenRouter model
 
 # Start the web app
 cd apps/web
@@ -120,13 +121,13 @@ function QueryComponent() {
 
 ## 🔧 Configuration Options
 
-### OpenAI Integration
-When `OPENAI_API_KEY` is configured:
-- Queries are processed using GPT-3.5 for better SQL generation
-- More complex queries can be understood
+### OpenRouter Integration
+When `OPENROUTER_API_KEY` is configured:
+- Queries are processed using the selected model via OpenRouter for better SQL generation
+- You can switch models (e.g., `openai/gpt-4o-mini`, `anthropic/claude-3.5-sonnet`, etc.)
 - Natural language understanding is more flexible
 
-Without OpenAI:
+Without OpenRouter:
 - Falls back to pattern matching
 - Still supports common query patterns
 - Works perfectly for standard queries
@@ -218,9 +219,9 @@ When no user is authenticated:
 # Queries will run against real database
 ```
 
-### 3. **Test OpenAI Integration**
+### 3. **Test OpenRouter Integration**
 ```bash
-# Add OPENAI_API_KEY to .env.local
+# Add OPENROUTER_API_KEY (and optionally OPENROUTER_MODEL) to .env.local
 # Restart the app
 # Try complex queries like:
 # "Show me a breakdown of my communication patterns"

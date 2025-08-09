@@ -39,7 +39,8 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=[ANON_KEY]
 SUPABASE_SERVICE_ROLE_KEY=[SERVICE_KEY]
 
 # Optional Services (can be added later)
-OPENAI_API_KEY=
+OPENROUTER_API_KEY=
+OPENROUTER_MODEL=openai/gpt-4o-mini
 REDIS_URL=redis://localhost:6379
 STRIPE_SECRET_KEY=
 
@@ -59,7 +60,8 @@ EOF
 cat > .env << 'EOF'
 DATABASE_URL=postgresql://[USER]:[PASSWORD]@[HOST]/[DATABASE]
 REDIS_URL=redis://localhost:6379
-OPENAI_API_KEY=
+OPENROUTER_API_KEY=
+OPENROUTER_MODEL=openai/gpt-4o-mini
 EOF
 ```
 
@@ -221,7 +223,7 @@ interface ChatInterfaceProps {
 
 // 3. Enhance API endpoint
 // apps/web/src/app/api/nlq/query/route.ts
-- Add OpenAI integration
+- Add OpenRouter integration (multi-model)
 - Implement SQL generation
 - Add result formatting
 - Include citations

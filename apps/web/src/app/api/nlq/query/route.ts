@@ -1,6 +1,6 @@
 // Natural Language Query API Endpoint
 // POST /api/nlq/query - Processes natural language queries and returns SQL results
-// Supports both streaming and regular responses, with optional OpenAI integration
+// Supports both streaming and regular responses, with OpenRouter integration
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
@@ -51,26 +51,26 @@ export async function POST(request: NextRequest) {
     let generatedSQL: string | null = null
     let explanation = ''
     
-    // Check if OpenAI is configured
-    const openAIKey = process.env.OPENAI_API_KEY
+    // Check if OpenRouter is configured
+    const openRouterKey = process.env.OPENROUTER_API_KEY
     
-    if (openAIKey && !isDemoMode) {
-      // Use OpenAI to generate SQL
+    if (openRouterKey && !isDemoMode) {
+      // Use OpenRouter to generate SQL
       try {
-        const openAIResponse = await generateSQLWithOpenAI(query, effectiveUserId, openAIKey)
-        generatedSQL = openAIResponse.sql
-        explanation = openAIResponse.explanation
+        const aiResponse = await generateSQLWithOpenRouter(query, effectiveUserId, openRouterKey)
+        generatedSQL = aiResponse.sql
+        explanation = aiResponse.explanation
       } catch (error) {
-        console.error('OpenAI SQL generation failed, falling back to pattern matching:', error)
+        console.error('OpenRouter SQL generation failed, falling back to pattern matching:', error)
         generatedSQL = generateSQLFromQuery(query, effectiveUserId)
-        explanation = 'Generated using pattern matching (OpenAI unavailable)'
+        explanation = 'Generated using pattern matching (OpenRouter unavailable)'
       }
     } else {
       // Use pattern matching as fallback
       generatedSQL = generateSQLFromQuery(query, effectiveUserId)
       explanation = isDemoMode 
         ? 'Demo mode: Using pattern matching for SQL generation' 
-        : 'Using pattern matching (OpenAI not configured)'
+        : 'Using pattern matching (OpenRouter not configured)'
     }
 
     if (!generatedSQL) {
@@ -336,8 +336,8 @@ function generateMockResults(sql: string): any[] {
   ]
 }
 
-// Generate SQL using OpenAI (when configured)
-async function generateSQLWithOpenAI(
+// Generate SQL using OpenRouter (when configured)
+async function generateSQLWithOpenRouter(
   query: string, 
   userId: string,
   apiKey: string
@@ -358,14 +358,20 @@ Generate safe, efficient SQL queries. Always:
 Respond with JSON: { "sql": "the SQL query", "explanation": "brief explanation" }`
 
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const baseUrl = process.env.OPENROUTER_API_BASE || 'https://openrouter.ai/api/v1'
+    const model = process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini'
+    const referer = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+
+    const response = await fetch(`${baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
+        'Authorization': `Bearer ${apiKey}`,
+        'HTTP-Referer': referer,
+        'X-Title': 'PhoneLog AI'
       },
       body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
+        model,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: query }
@@ -376,14 +382,14 @@ Respond with JSON: { "sql": "the SQL query", "explanation": "brief explanation" 
     })
 
     if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.statusText}`)
+      throw new Error(`OpenRouter API error: ${response.statusText}`)
     }
 
     const data = await response.json()
     const content = data.choices[0]?.message?.content
     
     if (!content) {
-      throw new Error('No response from OpenAI')
+      throw new Error('No response from OpenRouter')
     }
 
     try {
@@ -396,11 +402,11 @@ Respond with JSON: { "sql": "the SQL query", "explanation": "brief explanation" 
       // If JSON parsing fails, use pattern matching as fallback
       return {
         sql: generateSQLFromQuery(query, userId) || '',
-        explanation: 'Generated using pattern matching (OpenAI response parsing failed)'
+        explanation: 'Generated using pattern matching (OpenRouter response parsing failed)'
       }
     }
   } catch (error) {
-    console.error('OpenAI API error:', error)
+    console.error('OpenRouter API error:', error)
     throw error
   }
 }
