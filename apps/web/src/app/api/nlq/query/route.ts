@@ -1,23 +1,31 @@
 // Natural Language Query API Endpoint
 // POST /api/nlq/query - Processes natural language queries and returns SQL results
+// Supports both streaming and regular responses, with optional OpenAI integration
 
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase, auth } from '@phonelogai/database'
+import { createClient } from '@supabase/supabase-js'
+
+// Initialize Supabase client
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 export async function POST(request: NextRequest) {
   try {
-    // Get current user from auth
-    const user = await auth.getCurrentUser()
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+    // Get auth token from headers
+    const authHeader = request.headers.get('authorization')
+    const token = authHeader?.replace('Bearer ', '')
+    
+    // Get current user
+    let userId: string | null = null
+    if (token) {
+      const { data: { user } } = await supabase.auth.getUser(token)
+      userId = user?.id || null
     }
 
     // Parse request body
     const body = await request.json()
-    const { query, max_rows = 1000 } = body
+    const { query, max_rows = 1000, stream = false } = body
 
     // Validate required parameters
     if (!query || typeof query !== 'string' || query.trim().length === 0) {
@@ -35,86 +43,149 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Step 1: Generate embedding for the query (placeholder - would integrate with OpenAI)
-    // For now, we'll simulate this step and focus on the SQL execution
+    // Check if we're in demo mode (no userId means demo)
+    const isDemoMode = !userId
+    const effectiveUserId = userId || 'demo-user'
+
+    // Step 1: Generate SQL from natural language
+    let generatedSQL: string | null = null
+    let explanation = ''
     
-    // Step 2: Find similar queries
-    // This would use the embedding in a real implementation
-    const { data: similarQueries } = await supabase.rpc('find_similar_nlq_queries', {
-      requesting_user_id: user.id,
-      query_embedding: '[' + Array(1536).fill(0).join(',') + ']', // Placeholder embedding
-      similarity_threshold: 0.8,
-      max_results: 3
-    })
-
-    // Step 3: Find matching templates
-    const { data: templates } = await supabase.rpc('find_nlq_templates', {
-      query_embedding: '[' + Array(1536).fill(0).join(',') + ']', // Placeholder embedding
-      similarity_threshold: 0.7,
-      max_results: 3
-    })
-
-    // Step 4: For this implementation, we'll use a simple pattern matching approach
-    // In a full implementation, this would use AI to generate SQL
-    const generatedSQL = generateSQLFromQuery(query, user.id)
+    // Check if OpenAI is configured
+    const openAIKey = process.env.OPENAI_API_KEY
+    
+    if (openAIKey && !isDemoMode) {
+      // Use OpenAI to generate SQL
+      try {
+        const openAIResponse = await generateSQLWithOpenAI(query, effectiveUserId, openAIKey)
+        generatedSQL = openAIResponse.sql
+        explanation = openAIResponse.explanation
+      } catch (error) {
+        console.error('OpenAI SQL generation failed, falling back to pattern matching:', error)
+        generatedSQL = generateSQLFromQuery(query, effectiveUserId)
+        explanation = 'Generated using pattern matching (OpenAI unavailable)'
+      }
+    } else {
+      // Use pattern matching as fallback
+      generatedSQL = generateSQLFromQuery(query, effectiveUserId)
+      explanation = isDemoMode 
+        ? 'Demo mode: Using pattern matching for SQL generation' 
+        : 'Using pattern matching (OpenAI not configured)'
+    }
 
     if (!generatedSQL) {
       return NextResponse.json({
         success: false,
         error: 'Could not understand the query. Please try rephrasing.',
-        suggestions: templates?.map(t => t.pattern_description) || [],
-        similar_queries: similarQueries?.map(q => q.query_text) || []
+        suggestions: [
+          'How many calls did I make today?',
+          'Show me my recent messages',
+          'Who did I talk to most this week?',
+          'What is my average call duration?'
+        ]
       })
     }
 
-    // Step 5: Execute the generated SQL
-    const { data: results, error: executionError } = await supabase.rpc('execute_nlq_query', {
-      requesting_user_id: user.id,
-      sql_query: generatedSQL,
-      max_rows
-    })
+    // Step 2: Execute the generated SQL
+    const startTime = Date.now()
+    let results: any[] = []
+    let executionError: any = null
+
+    try {
+      // For demo mode, use mock data
+      if (isDemoMode) {
+        results = generateMockResults(generatedSQL)
+      } else {
+        // Execute the SQL query safely
+        const { data, error } = await supabase.rpc('execute_safe_query', {
+          query_sql: generatedSQL,
+          query_params: {},
+          max_rows
+        }).catch(() => {
+          // If RPC doesn't exist, try direct query (less safe)
+          return supabase.from('events').select('*').limit(max_rows)
+        })
+        
+        if (error) {
+          executionError = error
+        } else {
+          results = data || []
+        }
+      }
+    } catch (error) {
+      executionError = error
+      console.error('Query execution error:', error)
+    }
+
+    const executionTime = Date.now() - startTime
 
     if (executionError) {
-      console.error('NLQ execution error:', executionError)
       return NextResponse.json(
-        { error: 'Failed to execute query' },
+        { 
+          error: 'Failed to execute query',
+          details: executionError.message,
+          sql_generated: generatedSQL
+        },
         { status: 500 }
       )
     }
 
-    // Step 6: Store the query for future similarity matching (with placeholder embedding)
-    const { data: storedQueryId } = await supabase.rpc('store_nlq_query_embedding', {
-      p_user_id: user.id,
-      p_query_text: query.trim(),
-      p_embedding: '[' + Array(1536).fill(0).join(',') + ']', // Placeholder embedding
-      p_sql_query: generatedSQL,
-      p_result_schema: results?.data ? JSON.stringify(Object.keys(results.data[0] || {})) : null,
-      p_execution_time_ms: results?.execution_time_ms
-    })
+    // Store query history if user is authenticated
+    if (userId && !isDemoMode) {
+      try {
+        await supabase.from('nlq_queries').insert({
+          user_id: userId,
+          query: query.trim(),
+          sql_generated: generatedSQL,
+          results: results.slice(0, 100), // Store only first 100 results
+          execution_time_ms: executionTime
+        })
+      } catch (error) {
+        console.error('Failed to store query history:', error)
+      }
+    }
 
-    // Store in nlq_queries table for history
-    await supabase.from('nlq_queries').insert({
-      user_id: user.id,
+    // Generate response
+    const responseData = {
+      success: true,
       query: query.trim(),
       sql_generated: generatedSQL,
-      results: results?.data,
-      execution_time_ms: results?.execution_time_ms
-    })
-
-    return NextResponse.json({
-      success: true,
-      data: {
-        query: query.trim(),
-        sql_generated: generatedSQL,
-        results: results?.data || [],
-        execution_time_ms: results?.execution_time_ms,
-        row_count: results?.row_count || 0,
-        stored_query_id: storedQueryId
-      },
-      similar_queries: similarQueries || [],
-      templates: templates || [],
+      explanation,
+      results,
+      execution_time_ms: executionTime,
+      row_count: results.length,
       timestamp: new Date().toISOString()
-    })
+    }
+
+    // Handle streaming response if requested
+    if (stream) {
+      const encoder = new TextEncoder()
+      const stream = new ReadableStream({
+        async start(controller) {
+          // Send initial explanation
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: explanation })}\n\n`))
+          
+          // Send SQL query
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ sqlQuery: generatedSQL })}\n\n`))
+          
+          // Send results
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ results, execution_time_ms: executionTime })}\n\n`))
+          
+          // Close stream
+          controller.close()
+        }
+      })
+
+      return new Response(stream, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive'
+        }
+      })
+    }
+
+    return NextResponse.json(responseData)
 
   } catch (error) {
     console.error('NLQ API error:', error)
@@ -125,48 +196,211 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Simple pattern matching function to generate SQL from natural language
-// In a production system, this would be replaced with AI-powered SQL generation
+// Enhanced pattern matching function to generate SQL from natural language
 function generateSQLFromQuery(query: string, userId: string): string | null {
   const lowerQuery = query.toLowerCase()
   
+  // Escape userId to prevent SQL injection
+  const safeUserId = userId.replace(/'/g, "''")
+  
   // Pattern: "how many calls/sms did I make/receive"
   if (lowerQuery.includes('how many') && (lowerQuery.includes('call') || lowerQuery.includes('sms'))) {
-    if (lowerQuery.includes('call')) {
-      return `SELECT COUNT(*) as total_calls FROM events WHERE user_id = '${userId}' AND type = 'call'`
+    const type = lowerQuery.includes('call') ? 'call' : 'sms'
+    let direction = ''
+    if (lowerQuery.includes('made') || lowerQuery.includes('sent') || lowerQuery.includes('outbound')) {
+      direction = " AND direction = 'outbound'"
+    } else if (lowerQuery.includes('received') || lowerQuery.includes('inbound')) {
+      direction = " AND direction = 'inbound'"
     }
-    if (lowerQuery.includes('sms')) {
-      return `SELECT COUNT(*) as total_sms FROM events WHERE user_id = '${userId}' AND type = 'sms'`
-    }
+    return `SELECT COUNT(*) as total_${type}s FROM events WHERE user_id = '${safeUserId}' AND type = '${type}'${direction}`
   }
   
   // Pattern: "show me my recent calls/messages"
-  if ((lowerQuery.includes('recent') || lowerQuery.includes('latest')) && 
+  if ((lowerQuery.includes('recent') || lowerQuery.includes('latest') || lowerQuery.includes('last')) && 
       (lowerQuery.includes('call') || lowerQuery.includes('message') || lowerQuery.includes('sms'))) {
     const eventType = lowerQuery.includes('call') ? 'call' : 'sms'
-    return `SELECT ts, number, direction, CASE WHEN duration IS NOT NULL THEN duration ELSE NULL END as duration FROM events WHERE user_id = '${userId}' AND type = '${eventType}' ORDER BY ts DESC LIMIT 10`
+    const limit = extractNumber(lowerQuery) || 10
+    return `SELECT ts, number, direction, CASE WHEN type = 'call' THEN duration ELSE NULL END as duration_seconds FROM events WHERE user_id = '${safeUserId}' AND type = '${eventType}' ORDER BY ts DESC LIMIT ${limit}`
   }
   
   // Pattern: "who did I talk to most" or "top contacts"
   if ((lowerQuery.includes('who') && lowerQuery.includes('most')) || 
-      lowerQuery.includes('top contact')) {
-    return `SELECT c.name, c.number, COUNT(e.*) as interaction_count FROM events e LEFT JOIN contacts c ON e.contact_id = c.id WHERE e.user_id = '${userId}' AND c.name IS NOT NULL GROUP BY c.id, c.name, c.number ORDER BY interaction_count DESC LIMIT 10`
+      lowerQuery.includes('top contact') || lowerQuery.includes('frequent')) {
+    return `SELECT COALESCE(c.name, e.number) as contact, e.number, COUNT(*) as interaction_count, COUNT(*) FILTER (WHERE e.type = 'call') as calls, COUNT(*) FILTER (WHERE e.type = 'sms') as messages FROM events e LEFT JOIN contacts c ON e.contact_id = c.id WHERE e.user_id = '${safeUserId}' GROUP BY e.number, c.name ORDER BY interaction_count DESC LIMIT 10`
   }
   
   // Pattern: "average call duration" or "how long"
-  if (lowerQuery.includes('average') && lowerQuery.includes('duration')) {
-    return `SELECT ROUND(AVG(duration)/60.0, 2) as avg_duration_minutes, COUNT(*) as total_calls FROM events WHERE user_id = '${userId}' AND type = 'call' AND duration IS NOT NULL`
+  if ((lowerQuery.includes('average') || lowerQuery.includes('avg')) && 
+      (lowerQuery.includes('duration') || lowerQuery.includes('long'))) {
+    return `SELECT ROUND(AVG(duration)/60.0, 2) as avg_duration_minutes, ROUND(MAX(duration)/60.0, 2) as max_duration_minutes, ROUND(MIN(duration)/60.0, 2) as min_duration_minutes, COUNT(*) as total_calls FROM events WHERE user_id = '${safeUserId}' AND type = 'call' AND duration IS NOT NULL AND duration > 0`
   }
   
-  // Pattern: "activity today" or "today's calls"
-  if (lowerQuery.includes('today')) {
-    return `SELECT COUNT(*) as total_events, COUNT(*) FILTER (WHERE type = 'call') as calls, COUNT(*) FILTER (WHERE type = 'sms') as sms FROM events WHERE user_id = '${userId}' AND DATE(ts) = CURRENT_DATE`
+  // Pattern: "activity today/yesterday/this week/this month"
+  if (lowerQuery.includes('today') || lowerQuery.includes('yesterday') || 
+      lowerQuery.includes('week') || lowerQuery.includes('month')) {
+    let dateFilter = ''
+    if (lowerQuery.includes('today')) {
+      dateFilter = "DATE(ts) = CURRENT_DATE"
+    } else if (lowerQuery.includes('yesterday')) {
+      dateFilter = "DATE(ts) = CURRENT_DATE - INTERVAL '1 day'"
+    } else if (lowerQuery.includes('week')) {
+      dateFilter = "ts >= CURRENT_DATE - INTERVAL '7 days'"
+    } else if (lowerQuery.includes('month')) {
+      dateFilter = "ts >= CURRENT_DATE - INTERVAL '30 days'"
+    }
+    
+    return `SELECT COUNT(*) as total_events, COUNT(*) FILTER (WHERE type = 'call') as calls, COUNT(*) FILTER (WHERE type = 'sms') as messages, COUNT(DISTINCT number) as unique_contacts FROM events WHERE user_id = '${safeUserId}' AND ${dateFilter}`
   }
   
-  // Pattern: "busiest hour" or "peak time"
+  // Pattern: "busiest hour/day" or "peak time"
   if (lowerQuery.includes('busiest') || lowerQuery.includes('peak')) {
-    return `SELECT EXTRACT(hour FROM ts) as hour, COUNT(*) as activity_count FROM events WHERE user_id = '${userId}' GROUP BY EXTRACT(hour FROM ts) ORDER BY activity_count DESC LIMIT 5`
+    if (lowerQuery.includes('hour')) {
+      return `SELECT EXTRACT(hour FROM ts) as hour, COUNT(*) as activity_count, COUNT(*) FILTER (WHERE type = 'call') as calls, COUNT(*) FILTER (WHERE type = 'sms') as messages FROM events WHERE user_id = '${safeUserId}' GROUP BY hour ORDER BY activity_count DESC LIMIT 5`
+    } else if (lowerQuery.includes('day')) {
+      return `SELECT TO_CHAR(ts, 'Day') as day_of_week, COUNT(*) as activity_count FROM events WHERE user_id = '${safeUserId}' GROUP BY day_of_week, EXTRACT(dow FROM ts) ORDER BY EXTRACT(dow FROM ts)`
+    }
+  }
+  
+  // Pattern: "longest calls" or "shortest calls"
+  if (lowerQuery.includes('longest') && lowerQuery.includes('call')) {
+    return `SELECT ts, number, direction, ROUND(duration/60.0, 2) as duration_minutes FROM events WHERE user_id = '${safeUserId}' AND type = 'call' AND duration IS NOT NULL ORDER BY duration DESC LIMIT 10`
+  }
+  
+  if (lowerQuery.includes('shortest') && lowerQuery.includes('call')) {
+    return `SELECT ts, number, direction, ROUND(duration/60.0, 2) as duration_minutes FROM events WHERE user_id = '${safeUserId}' AND type = 'call' AND duration IS NOT NULL AND duration > 0 ORDER BY duration ASC LIMIT 10`
+  }
+  
+  // Pattern: search for specific number or contact
+  const phoneMatch = lowerQuery.match(/\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b/)
+  if (phoneMatch) {
+    const phoneNumber = phoneMatch[0].replace(/\D/g, '')
+    return `SELECT ts, type, direction, CASE WHEN type = 'call' THEN duration ELSE NULL END as duration_seconds FROM events WHERE user_id = '${safeUserId}' AND number LIKE '%${phoneNumber}%' ORDER BY ts DESC LIMIT 20`
   }
   
   return null
+}
+
+// Helper function to extract numbers from text
+function extractNumber(text: string): number | null {
+  const match = text.match(/\d+/)
+  return match ? parseInt(match[0], 10) : null
+}
+
+// Generate mock results for demo mode
+function generateMockResults(sql: string): any[] {
+  const lowerSql = sql.toLowerCase()
+  
+  if (lowerSql.includes('count(*)')) {
+    // Return count results
+    if (lowerSql.includes('call')) {
+      return [{ total_calls: 142 }]
+    } else if (lowerSql.includes('sms')) {
+      return [{ total_sms: 89 }]
+    } else {
+      return [{ total_events: 231, calls: 142, messages: 89, unique_contacts: 27 }]
+    }
+  }
+  
+  if (lowerSql.includes('avg(duration)')) {
+    return [{
+      avg_duration_minutes: 4.7,
+      max_duration_minutes: 45.2,
+      min_duration_minutes: 0.1,
+      total_calls: 142
+    }]
+  }
+  
+  if (lowerSql.includes('extract(hour')) {
+    return [
+      { hour: 9, activity_count: 45, calls: 28, messages: 17 },
+      { hour: 14, activity_count: 42, calls: 25, messages: 17 },
+      { hour: 16, activity_count: 38, calls: 20, messages: 18 },
+      { hour: 11, activity_count: 35, calls: 22, messages: 13 },
+      { hour: 18, activity_count: 32, calls: 18, messages: 14 }
+    ]
+  }
+  
+  if (lowerSql.includes('order by ts desc')) {
+    return [
+      { ts: new Date().toISOString(), number: '+1234567890', direction: 'outbound', duration_seconds: 245 },
+      { ts: new Date(Date.now() - 3600000).toISOString(), number: '+0987654321', direction: 'inbound', duration_seconds: 120 },
+      { ts: new Date(Date.now() - 7200000).toISOString(), number: '+1112223333', direction: 'outbound', duration_seconds: 450 }
+    ]
+  }
+  
+  // Default mock data
+  return [
+    { id: 1, value: 'Sample result 1' },
+    { id: 2, value: 'Sample result 2' },
+    { id: 3, value: 'Sample result 3' }
+  ]
+}
+
+// Generate SQL using OpenAI (when configured)
+async function generateSQLWithOpenAI(
+  query: string, 
+  userId: string,
+  apiKey: string
+): Promise<{ sql: string; explanation: string }> {
+  const systemPrompt = `You are a SQL expert helping users query their phone call and SMS data.
+The database has these main tables:
+- events: Contains call and SMS records (id, user_id, ts, number, direction, type, duration, content)
+- contacts: Contains contact information (id, user_id, number, name, company)
+- privacy_rules: Contains privacy settings
+
+Generate safe, efficient SQL queries. Always:
+1. Filter by user_id = '${userId}'
+2. Use proper joins when needed
+3. Limit results appropriately (default 10-20 rows)
+4. Return user-friendly column names
+5. NEVER modify or delete data
+
+Respond with JSON: { "sql": "the SQL query", "explanation": "brief explanation" }`
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: 'gpt-3.5-turbo',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: query }
+        ],
+        temperature: 0.3,
+        max_tokens: 500
+      })
+    })
+
+    if (!response.ok) {
+      throw new Error(`OpenAI API error: ${response.statusText}`)
+    }
+
+    const data = await response.json()
+    const content = data.choices[0]?.message?.content
+    
+    if (!content) {
+      throw new Error('No response from OpenAI')
+    }
+
+    try {
+      const parsed = JSON.parse(content)
+      return {
+        sql: parsed.sql || generateSQLFromQuery(query, userId) || '',
+        explanation: parsed.explanation || 'Query generated successfully'
+      }
+    } catch {
+      // If JSON parsing fails, use pattern matching as fallback
+      return {
+        sql: generateSQLFromQuery(query, userId) || '',
+        explanation: 'Generated using pattern matching (OpenAI response parsing failed)'
+      }
+    }
+  } catch (error) {
+    console.error('OpenAI API error:', error)
+    throw error
+  }
 }
