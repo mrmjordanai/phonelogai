@@ -5,11 +5,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Plan & Review
 
 ### Before starting work
-- Ultrathink and review (.claude/tasks/implementaion.md)
-- Write a plan to .claude/tasks/TASK_NAME.md.
-- The plan should be a detailed implementation plan and the reasoning behind them, as well as tasks broken down.
-- Don't over plan it, always think MVP.
-- Once you write the plan, firstly ask me to review it. Do not continue until I approve the plan.
+- Review existing task files in `.claude/tasks/` directory
+- Write a plan to `.claude/tasks/TASK_NAME.md`
+- The plan should be a detailed implementation plan with reasoning and broken down tasks
+- Don't over plan it, always think MVP
+- Once you write the plan, ask for review before proceeding
 
 ### While implementing
 - You should update the plan as you work.
@@ -29,57 +29,53 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Commands
 
-### Mobile-Only Development
+### Mobile Development
 ```bash
 # Start mobile development server
-npm run dev                    # Starts Expo mobile app
+npm run dev                    # Starts Expo mobile app (primary command)
 npm run mobile                 # Alternative mobile start command
 
-# Build mobile application  
-npm run build                  # Build mobile app for production
+# Platform-specific development  
+cd apps/mobile
+npx expo start                 # Direct Expo start (recommended for development)
+npx expo start --android      # Launch on Android device/emulator
+npx expo start --ios          # Launch on iOS device/simulator
 
-# Linting and type checking
+# Build and deployment
+npm run build                  # Build mobile app (placeholder - use Expo EAS for production)
+
+# Code quality
 npm run lint                   # ESLint for mobile app
 npm run type-check            # TypeScript checking for mobile app
 
 # Testing
 npm run test                  # Run mobile app tests
+cd apps/mobile/src/services && npx jest --watch   # Watch mode for service tests
 
-# Clean build artifacts
-npm run clean                 # Clean all build outputs and node_modules
+# Utilities
+npm run clean                 # Clean all node_modules
 ```
 
 ### Database Operations
 ```bash
-# Database migrations (from packages/database)
+# Database setup and management (from packages/database)
 cd packages/database
+npm run setup                 # Initial database setup
 npm run migrate               # Apply pending migrations
 npm run seed                  # Seed with sample data
 npm run reset                 # Reset database (development only)
-npm run setup                 # Initial database setup
 ```
 
-### Testing
+### Mobile Testing Specific
 ```bash
-# Run all tests across the monorepo
-npm run test
-
-# Run tests for specific packages
-cd packages/types && npm test          # Type tests
-cd apps/mobile/src/services && npm test   # Mobile service tests (Jest)
-
-# Run individual test files
-npx jest ConflictResolver.test.ts      # Run specific test file
-npx jest --watch                       # Run tests in watch mode
-```
-
-### Individual Package Development
-```bash
-# Mobile application commands
+# Run specific test suites
 cd apps/mobile
-npm run start                 # Start Expo development server
-npm run android              # Run on Android device/emulator
-npm run ios                  # Run on iOS device/simulator
+npx jest ConflictResolver.test.ts      # Test conflict resolution system
+npx jest OfflineQueueSystem.test.ts    # Test offline queue functionality
+npx jest ConflictQueue.test.ts         # Test conflict queue
+
+# Test with coverage
+npx jest --coverage             # Generate test coverage report
 ```
 
 ## Mobile-Only Architecture
@@ -139,6 +135,45 @@ npm run ios                  # Run on iOS device/simulator
 - **Loading states**: Consistent mobile loading patterns and animations
 - **Navigation**: React Navigation for mobile screen management
 
+#### Mobile Service Layer Architecture (`apps/mobile/src/services/`)
+The mobile app has a sophisticated service layer for offline-first functionality:
+
+- **ConflictResolver**: Automated duplicate detection and resolution with 85%+ success rate
+- **OfflineQueue**: AsyncStorage-based queue with priority processing and retry logic
+- **SyncEngine**: Network-aware synchronization with conflict resolution
+- **SyncHealthMonitor**: Real-time monitoring of sync status and data quality
+- **DuplicateDetector**: Advanced fuzzy matching using composite keys
+- **ConflictQueue**: Memory-efficient priority queue with persistence
+- **DataCollectionService**: Batch processing for mobile data collection
+- **Android collectors**: Native call/SMS log collection services
+- **CryptoService**: AES-GCM encryption for sensitive data
+
+**Key Patterns:**
+- All services use **singleton pattern** with `getInstance()`
+- **AsyncStorage persistence** for offline resilience
+- **Event-driven architecture** with service communication
+- **Quality scoring** system for data reliability assessment
+- **Background processing** support with Expo TaskManager
+
+#### Screen Architecture Pattern (`apps/mobile/src/screens/EventsScreen/`)
+The Events Screen demonstrates the mobile app's architectural patterns:
+
+**Component Structure:**
+- **Main Screen Component** (`EventsScreen.tsx`) - Screen coordinator
+- **Enhanced Screen** (`EnhancedEventsScreen.tsx`) - Production-ready version with full features
+- **Sub-components** (`components/`) - Reusable UI components
+- **Custom Hooks** (`hooks/`) - Business logic abstraction
+- **Types** (`types.ts`) - Screen-specific TypeScript definitions
+
+**Key Features:**
+- **Infinite scroll** with FlatList virtualization for performance
+- **Advanced filtering** with real-time search and date ranges
+- **Pull-to-refresh** with loading states
+- **Offline support** with cached data and sync indicators
+- **Accessibility** compliance with VoiceOver/TalkBack
+- **Error boundaries** with retry mechanisms
+- **Performance monitoring** with metrics tracking
+
 ## Database Schema Understanding
 
 ### Core Tables Hierarchy
@@ -168,16 +203,16 @@ All tables follow consistent RLS patterns:
 
 ### Required Environment Variables
 ```bash
-# Supabase (required for both web and mobile)
-NEXT_PUBLIC_SUPABASE_URL=          # Public Supabase URL
-NEXT_PUBLIC_SUPABASE_ANON_KEY=     # Public anon key
-SUPABASE_SERVICE_ROLE_KEY=         # Service role key (server-side only)
+# Mobile app environment (.env in apps/mobile/)
+EXPO_PUBLIC_SUPABASE_URL=          # Public Supabase URL for mobile
+EXPO_PUBLIC_SUPABASE_ANON_KEY=     # Public anon key for mobile
+EXPO_PUBLIC_API_URL=               # API base URL
+EXPO_PUBLIC_ENVIRONMENT=           # development | staging | production
 
-# Optional integrations
+# Root environment (.env for backend services)
+SUPABASE_SERVICE_ROLE_KEY=         # Service role key (server-side only)
 OPENROUTER_API_KEY=                # For NLQ features via OpenRouter
 OPENROUTER_MODEL=openai/gpt-4o-mini # Optional model selection
-STRIPE_SECRET_KEY=                 # For billing features
-REDIS_URL=                         # For caching/queuing
 ```
 
 ### Performance Considerations
@@ -222,14 +257,13 @@ Use the **Task tool** to delegate work to these specialized agents:
 - Query performance optimization for large datasets
 - Multi-tenant data isolation strategies
 
-#### **frontend-dashboard-agent**
-**Use for:** Next.js/React components, dashboards, visualizations, UI/UX, i18n
-- Interactive dashboards (Time Explorer, Heat-Map, Contact Intelligence)
-- Natural language query chat interface
-- Data visualization with large dataset performance
-- Shared component library development
-- Internationalization (i18n) implementation
-- Responsive design and accessibility (WCAG 2.1 AA)
+#### **frontend-dashboard-agent** 
+**Use for:** Mobile dashboard components, visualizations, UI/UX, i18n (Note: Web removed from project)
+- Mobile dashboard components and data visualization
+- React Native UI component development
+- Shared mobile component library
+- Mobile internationalization (i18n) implementation
+- Mobile accessibility (VoiceOver/TalkBack) compliance
 
 #### **mobile-development-agent**
 **Use for:** React Native/Expo work, device permissions, offline sync, Android/iOS native features
@@ -255,9 +289,9 @@ Use the **Task tool** to delegate work to these specialized agents:
 ```bash
 # Use the Task tool to delegate to sub-agents
 Task(
-  description="Create file upload system",
-  prompt="Implement an AI-powered file parser for carrier CDR files with layout classification...",
-  subagent_type="data-ingestion-ai-agent"
+  description="Implement mobile Events Screen",
+  prompt="Create a comprehensive Events Screen with infinite scroll, filtering, and offline support...",
+  subagent_type="mobile-development-agent"
 )
 
 Task(
@@ -267,13 +301,38 @@ Task(
 )
 
 Task(
-  description="Build dashboard component",
-  prompt="Create an interactive Time Explorer dashboard with date range picker...",
+  description="Build mobile dashboard",
+  prompt="Create mobile dashboard components with React Native optimizations...",
   subagent_type="frontend-dashboard-agent"
 )
 ```
 
 **Important:** Always specify the appropriate `subagent_type` when using the Task tool for specialized work. This ensures expert-level implementation and consistency with architectural patterns.
+
+## Current Development Status
+
+### ✅ Completed Components
+- **Mobile Architecture**: Full React Native/Expo setup with AsyncStorage
+- **Service Layer**: Complete offline-first service architecture
+- **Events Screen**: Comprehensive implementation with 19+ TypeScript files
+- **Conflict Resolution**: Advanced duplicate detection with 85%+ auto-resolution
+- **Sync System**: Network-aware sync with health monitoring
+- **Database Layer**: Supabase integration with RLS policies
+- **RBAC System**: 5-tier role-based access control
+
+### 🚧 In Development / Next Steps
+- **Contacts Screen**: Priority 1B implementation needed
+- **Chat/NLQ Screen**: Priority 1C for natural language queries  
+- **Android Native**: Call/SMS log collection bridge
+- **iOS File Import**: Manual file upload system
+- **Additional mobile screens**: Settings, Dashboard, Profile
+
+### 🏗️ Architecture Notes for Development
+- Project simplified to **mobile-only** (web app removed)
+- Use `npx expo start` for development server
+- All services follow **singleton pattern** with persistence
+- Screen components should follow the **Events Screen architecture pattern**
+- New screens need: main component, hooks, sub-components, types
 
 ## Important Instructions
 
@@ -281,3 +340,8 @@ Do what has been asked; nothing more, nothing less.
 NEVER create files unless they're absolutely necessary for achieving your goal.
 ALWAYS prefer editing an existing file to creating a new one.
 NEVER proactively create documentation files (*.md) or README files unless explicitly requested.
+# important-instruction-reminders
+Do what has been asked; nothing more, nothing less.
+NEVER create files unless they're absolutely necessary for achieving your goal.
+ALWAYS prefer editing an existing file to creating a new one.
+NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
