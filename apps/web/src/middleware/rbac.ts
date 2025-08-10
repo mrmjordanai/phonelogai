@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { RBACManager, PermissionCache } from '@phonelogai/database/rbac';
+import { RBACManager, PermissionCache } from '@phonelogai/database';
 import { supabase } from '@phonelogai/database';
 import type { 
   RBACResource, 

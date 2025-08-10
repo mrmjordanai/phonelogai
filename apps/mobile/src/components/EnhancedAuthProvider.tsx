@@ -46,9 +46,9 @@ interface EnhancedAuthContextType {
   offline: boolean;
   
   // Permission methods
-  hasPermission: (resource: RBACResource, action: RBACAction) => boolean;
-  checkPermission: (resource: RBACResource, action: RBACAction, resourceId?: string) => Promise<boolean>;
-  canManageUser: (targetRole: UserRole) => boolean;
+  hasPermission: (_resource: RBACResource, _action: RBACAction) => boolean;
+  checkPermission: (_resource: RBACResource, _action: RBACAction, _resourceId?: string) => Promise<boolean>;
+  canManageUser: (_targetRole: UserRole) => boolean;
   
   // Role utilities
   isOwner: boolean;
@@ -67,7 +67,7 @@ interface EnhancedAuthContextType {
   getLastSyncTime: () => Promise<Date | null>;
   
   // Offline handling
-  queueOfflineAction: (action: any) => Promise<void>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  queueOfflineAction: (_action: unknown) => Promise<void>;
   processOfflineQueue: () => Promise<void>;
 }
 
@@ -422,7 +422,7 @@ export function EnhancedAuthProvider({ children }: EnhancedAuthProviderProps) {
     }
   }, []);
 
-  const queueOfflineAction = useCallback(async (action: any) => {
+  const queueOfflineAction = useCallback(async (action: unknown) => {
     try {
       const existingQueue = await AsyncStorage.getItem('@offline_action_queue');
       const queue = existingQueue ? JSON.parse(existingQueue) : [];
@@ -469,7 +469,7 @@ export function EnhancedAuthProvider({ children }: EnhancedAuthProviderProps) {
 
       // Remove processed actions from queue
       if (processedActions.length > 0) {
-        const remainingQueue = queue.filter((action: any) => 
+        const remainingQueue = queue.filter((action: { id: string }) => 
           !processedActions.includes(action.id)
         );
         

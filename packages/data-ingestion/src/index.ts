@@ -12,7 +12,7 @@ export { BaseParser } from './parsers/BaseParser';
 export { CsvParser } from './parsers/CsvParser';
 export { PdfParser } from './parsers/PdfParser';
 export { ExcelParser } from './parsers/ExcelParser';
-export { MultiFormatParser, multiFormatParser } from './parsers/MultiFormatParser';
+export { MultiFormatParser } from './parsers/MultiFormatParser';
 
 // ML Classification and Field Mapping
 export { MLClassificationService, mlClassificationService } from './ml/MLClassificationService';

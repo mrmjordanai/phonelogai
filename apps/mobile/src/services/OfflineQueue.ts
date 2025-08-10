@@ -17,7 +17,7 @@ export type QueuedActionType =
 export interface QueuedAction {
   id: string;
   type: QueuedActionType;
-  payload: any;
+  payload: unknown;
   userId: string;
   createdAt: string;
   attempts: number;
@@ -285,7 +285,7 @@ class OfflineQueueService {
   /**
    * Add sync progress callback
    */
-  public addSyncProgressCallback(callback: (progress: SyncProgress) => void): () => void {
+  public addSyncProgressCallback(callback: (_progress: SyncProgress) => void): () => void {
     return this.syncEngine.addProgressCallback(callback);
   }
 

@@ -9,6 +9,26 @@ export type ConnectionType = 'wifi' | 'cellular' | 'ethernet' | 'bluetooth' | 'w
 export type ConnectionQuality = 'excellent' | 'good' | 'fair' | 'poor' | 'none';
 export type SyncStrategy = 'immediate' | 'wifi_preferred' | 'cellular_fallback' | 'offline';
 
+// Extended interface for WiFi details
+interface WiFiDetails extends NetInfoConnectedDetails {
+  strength?: number;
+  frequency?: number;
+}
+
+// Extended interface for cellular details  
+interface CellularDetails extends NetInfoConnectedDetails {
+  cellularGeneration?: string;
+  downlinkMax?: number;
+}
+
+// Extended interface for connection details with platform-specific properties
+interface ExtendedNetInfoDetails extends NetInfoConnectedDetails {
+  strength?: number;
+  frequency?: number;
+  cellularGeneration?: string;
+  downlinkMax?: number;
+}
+
 export interface NetworkState {
   isConnected: boolean;
   connectionType: ConnectionType;
@@ -62,7 +82,7 @@ class NetworkDetectorService {
   private currentState: NetworkState;
   private config: NetworkConfig;
   private thresholds: SyncThresholds;
-  private listeners: Set<(state: NetworkState) => void> = new Set();
+  private listeners: Set<(_state: NetworkState) => void> = new Set();
   private qualityCheckTimer?: NodeJS.Timeout;
   private connectionHistory: NetworkState[] = [];
   private metrics: NetworkMetrics;
@@ -176,7 +196,7 @@ class NetworkDetectorService {
   /**
    * Add network state change listener
    */
-  addListener(listener: (state: NetworkState) => void): () => void {
+  addListener(listener: (_state: NetworkState) => void): () => void {
     this.listeners.add(listener);
     // Return unsubscribe function
     return () => this.listeners.delete(listener);
@@ -386,7 +406,8 @@ class NetworkDetectorService {
     const details = netInfoState.details as NetInfoConnectedDetails;
     
     if (netInfoState.type === NetInfoStateType.wifi && details) {
-      const strength = (details as any).strength || (details as any).frequency;
+      const wifiDetails = details as WiFiDetails;
+      const strength = wifiDetails.strength || wifiDetails.frequency;
       if (strength) {
         if (strength >= 80) return 'excellent';
         if (strength >= 60) return 'good';
@@ -396,7 +417,8 @@ class NetworkDetectorService {
     }
 
     if (netInfoState.type === NetInfoStateType.cellular && details) {
-      const cellularGeneration = (details as any).cellularGeneration;
+      const cellularDetails = details as CellularDetails;
+      const cellularGeneration = cellularDetails.cellularGeneration;
       switch (cellularGeneration) {
         case '5g': return 'excellent';
         case '4g': return 'good';
@@ -420,8 +442,9 @@ class NetworkDetectorService {
     const details = netInfoState.details as NetInfoConnectedDetails;
     
     // Use actual bandwidth if available
-    if (details && (details as any).downlinkMax) {
-      return (details as any).downlinkMax;
+    const extendedDetails = details as ExtendedNetInfoDetails;
+    if (details && extendedDetails.downlinkMax) {
+      return extendedDetails.downlinkMax;
     }
 
     // Estimate based on connection type and quality
@@ -430,12 +453,13 @@ class NetworkDetectorService {
         return 10; // Assume decent WiFi
       case NetInfoStateType.ethernet:
         return 100; // Assume fast ethernet
-      case NetInfoStateType.cellular:
-        const cellularDetails = details as any;
+      case NetInfoStateType.cellular: {
+        const cellularDetails = details as { cellularGeneration?: string };
         if (cellularDetails?.cellularGeneration === '5g') return 20;
         if (cellularDetails?.cellularGeneration === '4g') return 5;
         if (cellularDetails?.cellularGeneration === '3g') return 1;
         return 0.5;
+      }
       default:
         return 1;
     }
@@ -444,9 +468,9 @@ class NetworkDetectorService {
   private getConnectionStrength(netInfoState: NetInfoState): number | undefined {
     if (!netInfoState.isConnected) return undefined;
 
-    const details = netInfoState.details as NetInfoConnectedDetails;
-    if (details && (details as any).strength !== undefined) {
-      return (details as any).strength;
+    const details = netInfoState.details as ExtendedNetInfoDetails;
+    if (details && details.strength !== undefined) {
+      return details.strength;
     }
 
     return undefined;

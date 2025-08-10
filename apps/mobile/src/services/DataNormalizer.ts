@@ -18,7 +18,7 @@ export interface NormalizedData {
   errors: Array<{
     sourceId: string;
     error: string;
-    data?: any;
+    data?: unknown;
   }>;
 }
 
@@ -377,7 +377,7 @@ class DataNormalizerService {
     if (!number) return '';
     
     // Remove all non-digit characters
-    let digits = number.replace(/\D/g, '');
+    const digits = number.replace(/\D/g, '');
     
     // Handle different number formats
     if (digits.length === 11 && digits.startsWith('1')) {

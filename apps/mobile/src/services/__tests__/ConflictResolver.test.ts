@@ -1,6 +1,6 @@
 import { ConflictResolver } from '../ConflictResolver';
 import { DuplicateDetector } from '../DuplicateDetector';
-import { Event, ConflictEvent, QualityScore } from '@phonelogai/types';
+import { Event, ConflictEvent } from '@phonelogai/types';
 import { supabase } from '@phonelogai/database';
 
 // Mock Supabase
@@ -18,6 +18,20 @@ jest.mock('@phonelogai/database', () => ({
 }));
 
 const mockSupabase = supabase as jest.Mocked<typeof supabase>;
+
+// Base event used throughout tests
+const baseEvent: Event = {
+  id: 'base-1',
+  user_id: 'user-1',
+  line_id: 'line-1',
+  ts: '2023-01-01T10:00:00Z',
+  number: '+1234567890',
+  direction: 'inbound',
+  type: 'call',
+  duration: 120,
+  created_at: '2023-01-01T10:00:00Z',
+  updated_at: '2023-01-01T10:00:00Z'
+};
 
 describe('ConflictResolver', () => {
   beforeEach(() => {
@@ -98,18 +112,6 @@ describe('ConflictResolver', () => {
   });
 
   describe('Conflict Detection', () => {
-    const baseEvent: Event = {
-      id: 'base-1',
-      user_id: 'user-1',
-      line_id: 'line-1',
-      ts: '2023-01-01T10:00:00Z',
-      number: '+1234567890',
-      direction: 'inbound',
-      type: 'call',
-      duration: 120,
-      created_at: '2023-01-01T10:00:00Z',
-      updated_at: '2023-01-01T10:00:00Z'
-    };
 
     it('should detect exact duplicates', () => {
       const duplicateEvent = { ...baseEvent, id: 'duplicate-1' };
@@ -190,7 +192,7 @@ describe('ConflictResolver', () => {
             })
           })
         })
-      } as any);
+      } as ReturnType<typeof mockSupabase.from>);
 
       const result = await ConflictResolver.detectConflictsBatch('user-1', {
         batchSize: 10
@@ -329,7 +331,7 @@ describe('ConflictResolver', () => {
             })
           })
         })
-      } as any);
+      } as ReturnType<typeof mockSupabase.from>);
 
       const result = await ConflictResolver.detectConflictsBatch('user-1', {
         batchSize: 1000

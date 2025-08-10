@@ -1,11 +1,11 @@
-import { Event, Contact, SyncHealth } from '@phonelogai/types';
+import { Event, Contact } from '@phonelogai/types';
 import { PlatformDetector } from '../utils/PlatformDetector';
 import { PermissionsManager } from './PermissionsManager';
 import { CallLogCollector, ProcessedCallLogEntry } from './android/CallLogCollector';
 import { SmsLogCollector, ProcessedSmsEntry } from './android/SmsLogCollector';
 import { DataNormalizer, NormalizedData, NormalizationOptions } from './DataNormalizer';
 import { OfflineQueue } from './OfflineQueue';
-import { SyncService, SyncOptions } from './SyncService';
+import { SyncService } from './SyncService';
 import { CryptoService } from './CryptoService';
 
 export interface CollectionOptions {
@@ -50,7 +50,7 @@ export interface CollectionProgress {
 class DataCollectionServiceImpl {
   private static instance: DataCollectionServiceImpl;
   private collectionInProgress = false;
-  private progressListeners: Array<(progress: CollectionProgress) => void> = [];
+  private progressListeners: Array<(_progress: CollectionProgress) => void> = [];
 
   private constructor() {}
 
@@ -373,7 +373,7 @@ class DataCollectionServiceImpl {
   /**
    * Subscribe to collection progress updates
    */
-  public onProgress(callback: (progress: CollectionProgress) => void): () => void {
+  public onProgress(callback: (_progress: CollectionProgress) => void): () => void {
     this.progressListeners.push(callback);
     
     return () => {
@@ -487,7 +487,7 @@ class DataCollectionServiceImpl {
   private async queueDataForSync(
     events: Event[],
     contacts: Contact[],
-    options: CollectionOptions
+    _options: CollectionOptions
   ): Promise<void> {
     try {
       // Queue events

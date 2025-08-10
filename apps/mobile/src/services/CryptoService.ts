@@ -1,6 +1,5 @@
 import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
-import { Platform } from 'react-native';
 
 export interface EncryptedData {
   data: string;
@@ -452,7 +451,7 @@ class CryptoServiceImpl {
   /**
    * Perform actual decryption (simplified implementation)
    */
-  private async performDecryption(encryptedData: string, key: Uint8Array, iv: Uint8Array): Promise<string> {
+  private async performDecryption(encryptedData: string, _key: Uint8Array, _iv: Uint8Array): Promise<string> {
     // Note: This is a simplified implementation for interface purposes
     // In production, you would use proper AES-256-CBC decryption
     // For now, we'll return a placeholder to maintain the interface

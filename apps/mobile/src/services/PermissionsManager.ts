@@ -1,5 +1,4 @@
-import { Platform, Alert, Linking, PermissionsAndroid } from 'react-native';
-import * as Permissions from 'expo-permissions';
+import { Alert, Linking, PermissionsAndroid } from 'react-native';
 import { PlatformDetector } from '../utils/PlatformDetector';
 
 export type AndroidPermission = 

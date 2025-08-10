@@ -171,27 +171,29 @@ export class FileDetectionService {
    */
   static estimateProcessingTime(fileSize: number, format: FileFormat): number {
     // Base processing rates (rows per second) by format
-    const baseRates = {
+    const baseRates: Record<FileFormat, number> = {
       csv: 5000,    // Fast - structured data
       json: 3000,   // Medium - needs parsing
       xlsx: 2000,   // Slower - complex format
       xls: 1500,    // Slowest - legacy format
       pdf: 500,     // Very slow - needs OCR potentially
       txt: 4000,    // Fast - plain text
+      unknown: 1000 // Default fallback
     };
     
     // Estimate rows based on file size (rough approximation)
-    const avgBytesPerRow = {
+    const avgBytesPerRow: Record<FileFormat, number> = {
       csv: 150,
       json: 300,
       xlsx: 200,
       xls: 180,
       pdf: 500,
       txt: 120,
+      unknown: 200 // Default fallback
     };
     
-    const estimatedRows = Math.floor(fileSize / avgBytesPerRow[format]);
-    const processingRate = baseRates[format];
+    const estimatedRows = Math.floor(fileSize / (avgBytesPerRow[format] || 200));
+    const processingRate = baseRates[format] || 1000;
     const estimatedSeconds = Math.ceil(estimatedRows / processingRate);
     
     // Add overhead for setup, validation, database writes (30% buffer)

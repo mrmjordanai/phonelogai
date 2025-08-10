@@ -18,7 +18,7 @@ export interface HealthCheckRule {
     value: number;
     unit?: 'ms' | 's' | 'min' | 'h' | 'bytes' | 'items' | '%';
   };
-  check: (context: HealthCheckContext) => Promise<HealthCheckResult>;
+  check: (_context: HealthCheckContext) => Promise<HealthCheckResult>;
 }
 
 export interface HealthCheckContext {
@@ -38,8 +38,14 @@ export interface HealthCheckResult {
   passed: boolean;
   value: number;
   message: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   suggestions?: string[];
+}
+
+interface DataGap {
+  start: string;
+  end: string;
+  duration_hours: number;
 }
 
 export interface HealthAssessment {
@@ -61,7 +67,7 @@ export interface HealthCheckFailure {
   value: number;
   threshold: number;
   suggestions: string[];
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface HealthCheckWarning {
@@ -265,18 +271,16 @@ class HealthCheckerEngine {
         return [];
       }
 
-      return gaps.map((gap: any) => ({
-        id: `data_gap_${gap.start_time}`,
+      return gaps.map((gap: DataGap) => ({
+        id: `data_gap_${gap.start}`,
         type: 'data_gap',
         severity: gap.duration_hours > 48 ? 'high' : 'medium',
-        message: `Data gap detected: ${gap.duration_hours} hours between ${gap.start_time} and ${gap.end_time}`,
+        message: `Data gap detected: ${gap.duration_hours} hours between ${gap.start} and ${gap.end}`,
         detectedAt: new Date(),
         metadata: {
-          startTime: gap.start_time,
-          endTime: gap.end_time,
-          durationHours: gap.duration_hours,
-          expectedEvents: gap.expected_events,
-          actualEvents: gap.actual_events
+          startTime: gap.start,
+          endTime: gap.end,
+          durationHours: gap.duration_hours
         }
       }));
     } catch (error) {
@@ -471,7 +475,7 @@ class HealthCheckerEngine {
         value: 5,
         unit: '%'
       },
-      check: async (context) => {
+      check: async (_context) => {
         // Get battery impact metrics
         const batteryMetrics = SyncMetrics.getBatteryImpactMetrics();
         const estimatedUsage = batteryMetrics.estimatedBatteryUsage;

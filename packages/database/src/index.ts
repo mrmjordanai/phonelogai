@@ -26,6 +26,9 @@ export * from './heatmap'
 // Export RBAC system
 export * from './rbac'
 
+// Export security system
+export * from './security'
+
 // Re-export common types for convenience
 export type {
   Event,

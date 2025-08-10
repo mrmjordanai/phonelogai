@@ -2,11 +2,10 @@ import {
   QueueItem, 
   QueueItemFactory, 
   QueuePriority, 
-  QueueStatus, 
   QueueItemUtils 
 } from './QueueItem';
 import { OfflineStorage, StorageFilter } from './OfflineStorage';
-import { NetworkDetector, NetworkState, SyncStrategy } from './NetworkDetector';
+import { NetworkDetector, NetworkState } from './NetworkDetector';
 import { Event, Contact, SyncHealth } from '@phonelogai/types';
 
 export interface QueueManagerConfig {
@@ -51,7 +50,7 @@ export interface BatchProcessingResult {
   processingTime: number;
 }
 
-export type ProcessingCallback = (item: QueueItem) => Promise<ProcessingResult>;
+export type ProcessingCallback = (_item: QueueItem) => Promise<ProcessingResult>;
 
 class QueueManagerService {
   private static instance: QueueManagerService;
@@ -62,7 +61,7 @@ class QueueManagerService {
   private isProcessing = false;
   private processingQueue = new Set<string>(); // Track items being processed
   private processingCallbacks: Map<string, ProcessingCallback> = new Map();
-  private maintenanceTimer?: NodeJS.Timeout;
+  private maintenanceTimer?: ReturnType<typeof setInterval>;
   private performanceHistory: ProcessingStats[] = [];
   private networkStateListener?: () => void;
 

@@ -190,7 +190,7 @@ export function useRBACBackgroundSync() {
  * Hook for role transition with offline queueing
  */
 export function useMobileRoleTransition(targetUserId: string | undefined) {
-  const { user, canManageUser } = useRBAC();
+  const { canManageUser } = useRBAC();
   const [loading, setLoading] = useState(false);
   const [queuedTransitions, setQueuedTransitions] = useState<Array<{
     userId: string;

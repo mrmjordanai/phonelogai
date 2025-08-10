@@ -16,6 +16,21 @@ export interface SyncMetric {
   errorTypes: string[];
 }
 
+// Type for serialized metric (timestamp as string)
+interface SerializedSyncMetric {
+  timestamp: string;
+  duration: number;
+  processedItems: number;
+  failedItems: number;
+  bytesTransferred: number;
+  networkType: string;
+  networkStrength?: number;
+  queueDepthBefore: number;
+  queueDepthAfter: number;
+  success: boolean;
+  errorTypes: string[];
+}
+
 export interface PerformanceMetrics {
   // Latency metrics
   averageLatency: number;
@@ -514,7 +529,8 @@ class SyncMetricsCollector {
   private calculateRetryRate(metrics: SyncMetric[]): number {
     // This is a simplified calculation - in reality, you'd need to track retry chains
     const totalSyncs = metrics.length;
-    const syncsWithErrors = metrics.filter(m => m.errorTypes.length > 0).length;
+    // Track syncs with errors for potential future use
+    // const _syncsWithErrors = metrics.filter(m => m.errorTypes.length > 0).length;
     const successfulSyncsWithErrors = metrics.filter(m => m.success && m.errorTypes.length > 0).length;
     
     return totalSyncs > 0 ? (successfulSyncsWithErrors / totalSyncs) * 100 : 0;
@@ -593,7 +609,7 @@ class SyncMetricsCollector {
       const data = await AsyncStorage.getItem(this.STORAGE_KEY);
       if (data) {
         const parsed = JSON.parse(data);
-        this.metrics = parsed.map((metric: any) => ({
+        this.metrics = parsed.map((metric: SerializedSyncMetric) => ({
           ...metric,
           timestamp: new Date(metric.timestamp)
         }));

@@ -20,6 +20,11 @@ const FieldMappingRequestSchema = z.object({
 
 type FieldMappingRequest = z.infer<typeof FieldMappingRequestSchema>;
 
+interface FieldMatchResult {
+  field: string;
+  score: number;
+}
+
 interface FieldMappingResult {
   mappings: FieldMapping[];
   confidence: number;
@@ -294,19 +299,19 @@ export class AdvancedFieldMapper {
     
     headers.forEach(header => {
       const headerLower = header.toLowerCase().trim();
-      let bestMatch: { field: string; score: number } | null = null;
+      let bestMatch: FieldMatchResult | null = null;
       
       targetFieldNames.forEach(targetField => {
         const score = this.calculateStringSimilarity(headerLower, targetField);
         
         if (score > 0.6 && (!bestMatch || score > bestMatch.score)) {
-          bestMatch = { field: targetField, score };
+          bestMatch = { field: targetField, score } as FieldMatchResult;
         }
       });
       
-      if (bestMatch && bestMatch.score > 0.6) {
-        const matchedField = bestMatch.field;
-        const matchedScore = bestMatch.score;
+      if (bestMatch && (bestMatch as FieldMatchResult).score > 0.6) {
+        const matchedField: string = (bestMatch as FieldMatchResult).field;
+        const matchedScore: number = (bestMatch as FieldMatchResult).score;
         mappings.push({
           source_field: header,
           target_field: matchedField as keyof Event | keyof Contact,

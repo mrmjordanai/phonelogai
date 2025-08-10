@@ -6,7 +6,8 @@ import {
   ParsingResult,
   FieldMapping,
   ProcessingMetrics,
-  IngestionError
+  IngestionError,
+  ProcessingConfig
 } from '../types/index.js';
 
 import { MultiFormatParser } from '../parsers/MultiFormatParser.js';
@@ -23,7 +24,19 @@ export class ETLOrchestrator {
   private etlPipeline: ETLPipeline;
 
   constructor() {
-    this.multiFormatParser = new MultiFormatParser();
+    // Initialize default config
+    const defaultConfig: ProcessingConfig = {
+      chunk_size: 1000,
+      max_errors: 100,
+      skip_validation: false,
+      deduplication_enabled: true,
+      anonymization_enabled: false,
+      batch_size: 1000,
+      timeout_minutes: 30
+    };
+    
+    // Initialize MultiFormatParser with default config
+    this.multiFormatParser = new MultiFormatParser('default-job', defaultConfig, []);
     this.jobTracker = new JobTracker();
     this.etlPipeline = new ETLPipeline({
       batchSize: 1000,
@@ -79,20 +92,25 @@ export class ETLOrchestrator {
       // Step 1: Parse file and extract raw data
       await this.updateProgress(jobId, 5, 'parsing', 'Parsing file');
       
-      const parseResult = await this.multiFormatParser.parseFile(
-        filePath,
-        {
-          userId,
-          jobId,
-          filename,
-          expectedCarrier: carrierType as any,
-          chunkSize: 1000
-        }
-      );
+      // Create parser with job-specific config
+      const processingConfig: ProcessingConfig = {
+        chunk_size: 1000,
+        max_errors: 100,
+        skip_validation: false,
+        deduplication_enabled: true,
+        anonymization_enabled: false,
+        batch_size: 500,
+        timeout_minutes: 30
+      };
+      const multiFormatParser = new MultiFormatParser(jobId, processingConfig);
+      
+      // Read the file and pass buffer to parser
+      const fs = require('fs');
+      const fileBuffer = fs.readFileSync(filePath);
+      const parseResult = await multiFormatParser.parseFile(fileBuffer);
 
-      if (!parseResult.success) {
-        const errors = parseResult.validationResult.validationSummary.errors;
-        const errorMessage = errors.length > 0 ? errors.join(', ') : 'Unknown parsing error';
+      if (parseResult.errors.length > 0) {
+        const errorMessage = parseResult.errors.map((e: any) => e.error_message).join(', ') || 'Unknown parsing error';
         throw new Error(`File parsing failed: ${errorMessage}`);
       }
 
@@ -113,16 +131,17 @@ export class ETLOrchestrator {
       }
 
       // Convert field mappings from Record to FieldMapping[]
-      const fieldMappings: FieldMapping[] = Object.entries(parseResult.classification.fieldMappings).map(([source, target]) => ({
+      const fieldMappings: FieldMapping[] = parseResult.classification?.fieldMappings ? 
+        Object.entries(parseResult.classification.fieldMappings).map(([source, target]) => ({
         source_field: source,
         target_field: target as keyof Event | keyof Contact,
         data_type: 'string', // Default type, would be inferred in real implementation
         confidence: 0.8,
         is_required: false
-      }));
+      })) : [];
 
       const etlResult = await this.etlPipeline.processEvents(
-        parseResult.data,
+        parseResult.data || [],
         fieldMappings,
         {
           userId,

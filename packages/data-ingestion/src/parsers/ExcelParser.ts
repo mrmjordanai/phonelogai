@@ -80,10 +80,13 @@ export class ExcelParser extends BaseParser {
   async parseFile(buffer: Buffer): Promise<ExtractionResult> {
     const parsingResult = await this.parse(buffer);
     
-    // Convert ParsingResult to ExtractionResult
+    // Convert ParsingResult to ExtractionResult  
+    const events = parsingResult.data ? parsingResult.data.filter((item: any) => item.type === 'call' || item.type === 'sms') : [];
+    const contacts = events.length > 0 ? this.extractContactsFromEvents(events) : [];
+    
     return {
-      events: parsingResult.data.events || [],
-      contacts: parsingResult.data.contacts || [],
+      events,
+      contacts,
       metadata: {
         total_rows: parsingResult.metrics.totalRows,
         parsed_rows: parsingResult.metrics.processedRows,
@@ -206,8 +209,6 @@ export class ExcelParser extends BaseParser {
         },
         classification,
         validationResult: {
-          success: false,
-          data: [],
           validationSummary: {
             totalRows: 0,
             validRows: 0,
@@ -244,7 +245,7 @@ export class ExcelParser extends BaseParser {
       try {
         await fs.unlink(tempFilePath);
       } catch (cleanupError) {
-        logger.warn('Failed to clean up temp file', { error: cleanupError.message });
+        logger.warn('Failed to clean up temp file', { error: getErrorMessage(cleanupError) });
       }
       
       result.metadata.processingTime = Date.now() - startTime;
@@ -322,7 +323,7 @@ export class ExcelParser extends BaseParser {
           });
           
         } catch (parseError) {
-          reject(new Error(`Failed to parse Excel processor response: ${parseError.message}`));
+          reject(new Error(`Failed to parse Excel processor response: ${getErrorMessage(parseError)}`));
         }
       });
       

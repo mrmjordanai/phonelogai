@@ -10,12 +10,12 @@ import {
   RefreshControl
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ConflictEvent, ConflictType, ResolvedConflict } from '@phonelogai/types';
+import { ConflictEvent, ConflictType } from '@phonelogai/types';
 import { ConflictResolver } from '../services/ConflictResolver';
 import { useAuth } from '../components/AuthProvider';
 
 interface ConflictReviewScreenProps {
-  navigation: any;
+  navigation: { navigate: (_screen: string, _params?: object) => void; goBack: () => void };
 }
 
 export const ConflictReviewScreen: React.FC<ConflictReviewScreenProps> = ({ navigation }) => {
@@ -241,7 +241,7 @@ export const ConflictReviewScreen: React.FC<ConflictReviewScreenProps> = ({ navi
               styles.filterButton,
               filter === filterType && styles.activeFilterButton
             ]}
-            onPress={() => setFilter(filterType as any)}
+            onPress={() => setFilter(filterType as ConflictType | 'all')}
           >
             <Text style={[
               styles.filterButtonText,

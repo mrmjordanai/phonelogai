@@ -1,6 +1,5 @@
 import { 
   QueueItem, 
-  QueuePriority, 
   CreateEventOperation, 
   UpdateEventOperation, 
   DeleteEventOperation, 
@@ -12,7 +11,6 @@ import { QueueManager, ProcessingResult } from './QueueManager';
 import { NetworkDetector, NetworkState } from './NetworkDetector';
 import { ConflictResolver } from './ConflictResolver';
 import { supabase } from '@phonelogai/database';
-import { Event, Contact, SyncHealth } from '@phonelogai/types';
 
 export interface SyncProgress {
   totalItems: number;
@@ -48,8 +46,8 @@ export interface SyncConfig {
   maxNetworkRetries: number;
 }
 
-export type SyncProgressCallback = (progress: SyncProgress) => void;
-export type SyncEventCallback = (event: 'started' | 'paused' | 'resumed' | 'completed' | 'failed', data?: any) => void;
+export type SyncProgressCallback = (_progress: SyncProgress) => void;
+export type SyncEventCallback = (_event: 'started' | 'paused' | 'resumed' | 'completed' | 'failed', _data?: unknown) => void;
 
 class SyncEngineService {
   private static instance: SyncEngineService;
@@ -453,7 +451,7 @@ class SyncEngineService {
           result = await this.processSyncHealth(item);
           break;
         default:
-          throw new Error(`Unknown operation type: ${(item.operation as any).type}`);
+          throw new Error(`Unknown operation type: ${item.operation.type}`);
       }
 
       result.processingTime = Date.now() - startTime;
@@ -476,7 +474,7 @@ class SyncEngineService {
     const event = operation.payload;
 
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('events')
         .insert([event])
         .select()
@@ -570,7 +568,7 @@ class SyncEngineService {
     const contact = operation.payload;
 
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('contacts')
         .insert([contact])
         .select()
@@ -639,7 +637,7 @@ class SyncEngineService {
     const syncHealth = operation.payload;
 
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('sync_health')
         .upsert([syncHealth])
         .select()
@@ -766,7 +764,7 @@ class SyncEngineService {
     return currentIndex >= thresholdIndex;
   }
 
-  private shouldRetryOnError(error: any): boolean {
+  private shouldRetryOnError(error: Error | unknown): boolean {
     if (!this.config.retryOnNetworkError) return false;
 
     // Network-related errors that should be retried
@@ -818,7 +816,7 @@ class SyncEngineService {
     }
   }
 
-  private notifyEvent(event: 'started' | 'paused' | 'resumed' | 'completed' | 'failed', data?: any): void {
+  private notifyEvent(event: 'started' | 'paused' | 'resumed' | 'completed' | 'failed', data?: SyncResult): void {
     for (const callback of this.eventCallbacks) {
       try {
         callback(event, data);

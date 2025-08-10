@@ -39,13 +39,13 @@ interface RBACContextValue {
   offline: boolean;
 
   // Permission checking
-  checkPermission: (resource: RBACResource, action: RBACAction, resourceId?: string) => Promise<boolean>;
-  hasPermission: (resource: RBACResource, action: RBACAction) => boolean;
-  canAccess: (resource: RBACResource, action: RBACAction, resourceId?: string) => boolean;
+  checkPermission: (_resource: RBACResource, _action: RBACAction, _resourceId?: string) => Promise<boolean>;
+  hasPermission: (_resource: RBACResource, _action: RBACAction) => boolean;
+  canAccess: (_resource: RBACResource, _action: RBACAction, _resourceId?: string) => boolean;
 
   // Role management
-  canManageUser: (targetRole: UserRole) => boolean;
-  canElevateToRole: (targetRole: UserRole) => boolean;
+  canManageUser: (_targetRole: UserRole) => boolean;
+  canElevateToRole: (_targetRole: UserRole) => boolean;
   getDisplayRole: () => { name: string; description: string } | null;
 
   // Utility functions
@@ -422,7 +422,7 @@ export function useRole(): {
   isAnalyst: boolean;
   isMember: boolean;
   isViewer: boolean;
-  canManage: (targetRole: UserRole) => boolean;
+  canManage: (_targetRole: UserRole) => boolean;
   offline: boolean;
 } {
   const { 

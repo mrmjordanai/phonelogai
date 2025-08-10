@@ -24,7 +24,12 @@
       "Bash(npx turbo run type-check:*)",
       "Bash(npx turbo run build:*)",
       "Bash(chmod:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(grep:*)",
+      "mcp__supabase-community-supabase-mcp__list_projects",
+      "Bash(node:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": []
   }

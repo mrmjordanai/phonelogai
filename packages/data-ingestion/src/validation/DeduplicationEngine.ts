@@ -45,7 +45,7 @@ export class DeduplicationEngine {
    */
   generateContactCompositeKey(contact: Partial<Contact>): string {
     const components = [
-      this.normalizePhoneForKey(contact.phone_number || ''),
+      this.normalizePhoneForKey(contact.number || (contact as any).phone_number || ''),
     ];
 
     // Add normalized name if available
@@ -244,7 +244,7 @@ export class DeduplicationEngine {
     const conflicts: MergeConflict[] = [];
 
     // Define merge strategies for different fields
-    const mergeStrategies: Record<string, 'first' | 'last' | 'longest' | 'shortest' | 'max' | 'min' | 'merge'> = {
+    const mergeStrategies: Record<string, MergeConflict['resolution']> = {
       id: 'first',
       user_id: 'first',
       ts: 'first', // Use first timestamp (earliest)
@@ -289,7 +289,7 @@ export class DeduplicationEngine {
         conflicts.push({
           field,
           values: values,
-          resolution: strategy
+          resolution: strategy as MergeConflict['resolution']
         });
       } else {
         (mergedEvent as any)[field] = values[0];
@@ -317,7 +317,7 @@ export class DeduplicationEngine {
     const mergedContact: Partial<Contact> = {};
     const conflicts: MergeConflict[] = [];
 
-    const mergeStrategies: Record<string, 'first' | 'last' | 'longest' | 'shortest' | 'max' | 'min' | 'merge'> = {
+    const mergeStrategies: Record<string, MergeConflict['resolution']> = {
       id: 'first',
       user_id: 'first',
       phone_number: 'first',
@@ -363,7 +363,7 @@ export class DeduplicationEngine {
         conflicts.push({
           field,
           values: values,
-          resolution: strategy
+          resolution: strategy as MergeConflict['resolution']
         });
       } else {
         (mergedContact as any)[field] = values[0];
@@ -679,13 +679,13 @@ export class DeduplicationEngine {
    * Determine if gap is likely from deleted data
    */
   private isLikelyDeletedData(gapHours: number, expectedFrequency?: string): boolean {
-    const thresholds = {
+    const thresholds: Record<string, number> = {
       high: 12,    // High frequency users: gap > 12 hours suspicious
       medium: 48,  // Medium frequency users: gap > 48 hours suspicious
       low: 168     // Low frequency users: gap > 1 week suspicious
     };
 
-    const threshold = thresholds[expectedFrequency || 'medium'];
+    const threshold = thresholds[expectedFrequency || 'medium'] || thresholds.medium;
     return gapHours > threshold;
   }
 }

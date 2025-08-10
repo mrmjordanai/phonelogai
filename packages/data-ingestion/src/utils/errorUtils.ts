@@ -27,7 +27,8 @@ export function getErrorStack(error: unknown): string | undefined {
 export function createError(message: string, cause?: unknown): Error {
   const error = new Error(message);
   if (cause) {
-    error.cause = cause;
+    // Use type assertion since Error.cause is not available in ES2017
+    (error as any).cause = cause;
   }
   return error;
 }

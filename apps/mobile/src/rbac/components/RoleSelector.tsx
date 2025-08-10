@@ -22,8 +22,8 @@ import { useRBAC } from '../RBACProvider';
 interface RoleSelectorProps {
   currentRole: UserRole;
   targetUserId?: string;
-  onChange: (role: UserRole) => void;
-  onSave?: (role: UserRole) => Promise<void>;
+  onChange: (_role: UserRole) => void;
+  onSave?: (_role: UserRole) => Promise<void>;
   disabled?: boolean;
   showDescription?: boolean;
   compact?: boolean;
@@ -32,7 +32,7 @@ interface RoleSelectorProps {
 
 export function RoleSelector({
   currentRole,
-  targetUserId: _targetUserId,
+  targetUserId: __targetUserId,
   onChange,
   onSave,
   disabled = false,

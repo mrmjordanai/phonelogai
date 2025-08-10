@@ -2,7 +2,7 @@ import { EventEmitter } from 'events';
 import { AppState, AppStateStatus } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
-import { SyncHealth, ConflictMetrics } from '@phonelogai/types';
+import { ConflictMetrics } from '@phonelogai/types';
 import { dbUtils } from '@phonelogai/database';
 import { OfflineQueue } from './OfflineQueue';
 import { SyncService, SyncResult } from './SyncService';
@@ -30,7 +30,7 @@ export interface SyncHealthIssue {
   message: string;
   detectedAt: Date;
   resolvedAt?: Date;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface HealthEventData {
@@ -38,7 +38,7 @@ export interface HealthEventData {
   status?: SyncHealthStatus;
   issue?: SyncHealthIssue;
   syncResult?: SyncResult;
-  metrics?: any;
+  metrics?: ConflictMetrics;
 }
 
 export interface SyncHealthConfig {
@@ -62,13 +62,13 @@ class SyncHealthMonitorImpl extends EventEmitter {
   private activeIssues = new Map<string, SyncHealthIssue>();
   
   // Timers and intervals
-  private monitoringInterval?: NodeJS.Timeout;
-  private healthCheckInterval?: NodeJS.Timeout;
-  private backgroundInterval?: NodeJS.Timeout;
+  private monitoringInterval?: ReturnType<typeof setInterval>;
+  private healthCheckInterval?: ReturnType<typeof setInterval>;
+  private backgroundInterval?: ReturnType<typeof setInterval>;
   
   // App lifecycle management
-  private appStateSubscription?: any;
-  private netInfoSubscription?: any;
+  private appStateSubscription?: ReturnType<typeof AppState.addEventListener>;
+  private netInfoSubscription?: ReturnType<typeof NetInfo.addEventListener>;
   
   // Storage keys
   private readonly STORAGE_KEY = '@phonelogai:sync_health_monitor';
@@ -674,7 +674,7 @@ class SyncHealthMonitorImpl extends EventEmitter {
     return 'critical';
   }
 
-  private mapNetworkStatus(networkInfo: any): 'connected' | 'disconnected' | 'limited' {
+  private mapNetworkStatus(networkInfo: NetInfoState): 'connected' | 'disconnected' | 'limited' {
     if (!networkInfo.isConnected) return 'disconnected';
     if (networkInfo.isMetered && !networkInfo.isWiFi) return 'limited';
     return 'connected';
@@ -686,7 +686,7 @@ class SyncHealthMonitorImpl extends EventEmitter {
     if (!issue) {
       issue = {
         id: `${type}_${Date.now()}`,
-        type: type as any,
+        type: type as SyncHealthIssue['type'],
         severity,
         message,
         detectedAt: new Date()
@@ -714,7 +714,7 @@ class SyncHealthMonitorImpl extends EventEmitter {
 
   private async updateDatabaseSyncHealth(): Promise<void> {
     try {
-      const user = await dbUtils.sync.getSyncHealth('current_user'); // This would need user ID
+      await dbUtils.sync.getSyncHealth('current_user'); // This would need user ID
       // Update sync health in database would go here
       // For now, just log the update
       console.log('Database sync health updated');

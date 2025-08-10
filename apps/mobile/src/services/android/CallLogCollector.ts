@@ -116,7 +116,7 @@ class CallLogCollectorService {
   /**
    * Get call log count for date range
    */
-  public async getCallLogCount(_startDate?: Date, _endDate?: Date): Promise<number> {
+  public async getCallLogCount(): Promise<number> {
     if (!await this.canCollectCallLog()) {
       return 0;
     }

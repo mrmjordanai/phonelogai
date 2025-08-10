@@ -140,7 +140,7 @@ class SmsLogCollectorService {
   /**
    * Get SMS log count for date range
    */
-  public async getSmsLogCount(_startDate?: Date, _endDate?: Date): Promise<number> {
+  public async getSmsLogCount(): Promise<number> {
     if (!await this.canCollectSmsLog()) {
       return 0;
     }
@@ -220,14 +220,9 @@ class SmsLogCollectorService {
       return [];
     }
 
-    try {
-      // This would typically use a GROUP BY query on thread_id
-      // For now, return empty array as placeholder
-      return [];
-    } catch (error) {
-      console.error('Error getting SMS threads:', error);
-      return [];
-    }
+    // This would typically use a GROUP BY query on thread_id
+    // For now, return empty array as placeholder
+    return [];
   }
 
   /**

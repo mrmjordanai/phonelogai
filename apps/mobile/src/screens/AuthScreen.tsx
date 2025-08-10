@@ -38,8 +38,8 @@ export function AuthScreen() {
       if (isSignUp) {
         Alert.alert('Success', 'Check your email for the confirmation link!');
       }
-    } catch (error: any) {
-      Alert.alert('Error', error.message);
+    } catch (error: unknown) {
+      Alert.alert('Error', error instanceof Error ? error.message : 'An error occurred');
     } finally {
       setLoading(false);
     }

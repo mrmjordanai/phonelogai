@@ -310,7 +310,7 @@ export class ETLPipeline {
             case 'ts':
               const timestampResult = this.dataNormalizer.normalizeTimestamp(sourceValue);
               if (timestampResult.isValid && timestampResult.normalized) {
-                normalizedEvent.ts = timestampResult.normalized;
+                normalizedEvent.ts = timestampResult.normalized.toISOString();
                 metrics.timestamps.normalized++;
               } else {
                 metrics.timestamps.errors++;

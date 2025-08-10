@@ -18,7 +18,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { createClient } from '@supabase/supabase-js';
 import logger from '../utils/logger';
 import { isError, getErrorMessage } from '../utils/errorUtils';
-import { multiFormatParser } from '../parsers/MultiFormatParser';
+import { MultiFormatParser } from '../parsers/MultiFormatParser';
 import { mlClassificationService } from '../ml/MLClassificationService';
 import { jobTracker } from './JobTracker';
 import {
@@ -30,7 +30,8 @@ import {
   CarrierType,
   LayoutClassificationNew,
   FileUploadRequest,
-  FileUploadResponse
+  FileUploadResponse,
+  ProcessingConfig
 } from '../types';
 
 // logger is already imported above
@@ -516,8 +517,32 @@ export class ParsingOrchestrator extends EventEmitter {
         filename: job.filename
       });
       
+      // Create parser instance with proper config
+      const processingConfig: ProcessingConfig = {
+        chunk_size: 1000,
+        max_errors: 100,
+        skip_validation: false,
+        deduplication_enabled: true,
+        anonymization_enabled: false,
+        batch_size: 500,
+        timeout_minutes: 30
+      };
+      
+      const multiFormatParser = new MultiFormatParser(job.id, processingConfig);
+      
+      // Read the file buffer if we have a file path
+      let fileBuffer: Buffer;
+      if (job.filePath) {
+        const fs = await import('fs');
+        fileBuffer = fs.readFileSync(job.filePath);
+      } else if (job.fileContent) {
+        fileBuffer = Buffer.from(job.fileContent);
+      } else {
+        throw new Error('No file path or content available');
+      }
+      
       // Use MultiFormatParser to process the file
-      const result = await multiFormatParser.parseFile(job);
+      const result = await multiFormatParser.parseFile(fileBuffer);
       
       // Mark as completed
       job.status = 'completed';
@@ -531,8 +556,8 @@ export class ParsingOrchestrator extends EventEmitter {
       
       logger.info('Job processing completed', {
         jobId: job.id,
-        rowsProcessed: result.metrics.processedRows,
-        processingTime: result.metrics.processingTime
+        rowsProcessed: result.metrics?.processedRows || 0,
+        processingTime: result.metrics?.processingTime || 0
       });
       
     } catch (error) {

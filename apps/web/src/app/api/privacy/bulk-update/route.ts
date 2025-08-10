@@ -7,8 +7,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import type { Database } from '@phonelogai/database';
-import { SecurityManager, createSecurityManager } from '@phonelogai/database/security';
-import type { BulkPrivacyUpdate } from '@phonelogai/database/security';
+import { SecurityManager, createSecurityManager } from '@phonelogai/database';
+import type { BulkPrivacyUpdate } from '@phonelogai/database';
 
 export async function POST(request: NextRequest) {
   try {

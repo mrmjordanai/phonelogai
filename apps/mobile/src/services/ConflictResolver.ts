@@ -194,17 +194,18 @@ class ConflictResolverService {
     // Calculate completeness
     let filledOptionalFields = 0;
     optionalFields.forEach(field => {
-      if ((event as any)[field] != null) filledOptionalFields++;
+      if ((event as Record<string, unknown>)[field] != null) filledOptionalFields++;
     });
     
     const completeness = (requiredFields.length + filledOptionalFields) / (requiredFields.length + optionalFields.length);
 
     // Get source reliability (default to 'device' if not set)
-    const source = (event as any).source || 'device';
+    const source = event.source || 'device';
     const sourceReliability = this.SOURCE_WEIGHTS[source as keyof typeof this.SOURCE_WEIGHTS] || 0.5;
 
     // Calculate freshness based on sync_timestamp or created_at
-    const syncTime = (event as any).sync_timestamp || event.created_at;
+    const eventWithSync = event as Event & { sync_timestamp?: string };
+    const syncTime = eventWithSync.sync_timestamp || event.created_at;
     const ageInDays = (Date.now() - new Date(syncTime).getTime()) / (1000 * 60 * 60 * 24);
     const freshness = Math.max(0, 1 - (ageInDays / 7)); // 7 days for full decay
 
@@ -636,7 +637,7 @@ class ConflictResolverService {
   /**
    * Merge two conflicting events
    */
-  private mergeEvents(localEvent: Event, remoteEvent: Event, options: ConflictResolutionOptions): Event {
+  private mergeEvents(localEvent: Event, remoteEvent: Event, _options: ConflictResolutionOptions): Event {
     const merged: Event = { ...localEvent };
 
     // Use the more recent updated_at timestamp
@@ -667,15 +668,17 @@ class ConflictResolverService {
       case 'duplicate':
         return `Duplicate event detected for ${localEvent.number} at ${localEvent.ts}`;
       
-      case 'timestamp_drift':
+      case 'timestamp_drift': {
         const timeDiff = Math.abs(
           new Date(localEvent.ts).getTime() - new Date(remoteEvent.ts).getTime()
         );
         return `Timestamp drift of ${timeDiff}ms detected`;
+      }
       
-      case 'field_mismatch':
+      case 'field_mismatch': {
         const mismatches = this.findFieldMismatches(localEvent, remoteEvent);
         return `Field mismatches detected: ${mismatches.join(', ')}`;
+      }
       
       default:
         return 'Unknown conflict type';
@@ -689,8 +692,8 @@ class ConflictResolverService {
     const fieldsToCompare = ['line_id', 'ts', 'number', 'direction', 'type', 'duration', 'content'];
     
     return fieldsToCompare.every(field => {
-      const val1 = (event1 as any)[field];
-      const val2 = (event2 as any)[field];
+      const val1 = (event1 as Record<string, unknown>)[field];
+      const val2 = (event2 as Record<string, unknown>)[field];
       return val1 === val2;
     });
   }
@@ -710,8 +713,8 @@ class ConflictResolverService {
     const fieldsToCheck = ['duration', 'content', 'contact_id'];
 
     for (const field of fieldsToCheck) {
-      const val1 = (event1 as any)[field];
-      const val2 = (event2 as any)[field];
+      const val1 = (event1 as Record<string, unknown>)[field];
+      const val2 = (event2 as Record<string, unknown>)[field];
       
       if (val1 !== val2 && val1 != null && val2 != null) {
         mismatches.push(field);

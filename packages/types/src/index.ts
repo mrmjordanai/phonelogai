@@ -30,6 +30,8 @@ export interface Contact {
   total_sms: number;
   created_at: string;
   updated_at: string;
+  // Add phone_number alias for compatibility with data-ingestion
+  phone_number?: string;
 }
 
 export interface PrivacyRule {

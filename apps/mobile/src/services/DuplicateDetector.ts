@@ -1,5 +1,4 @@
-import { Event, ConflictType, QualityScore } from '@phonelogai/types';
-import { ConflictResolverService } from './ConflictResolver';
+import { Event, ConflictType } from '@phonelogai/types';
 
 export interface PhoneNumber {
   original: string;

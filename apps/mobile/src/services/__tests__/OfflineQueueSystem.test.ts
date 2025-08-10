@@ -2,7 +2,6 @@
  * Comprehensive test suite for the Enhanced Offline Queue System
  */
 import { 
-  QueueItem, 
   QueueItemFactory, 
   QueueItemSerializer, 
   QueueItemUtils 
@@ -12,7 +11,7 @@ import { NetworkDetector } from '../NetworkDetector';
 import { QueueManager } from '../QueueManager';
 import { SyncEngine } from '../SyncEngine';
 import { OfflineQueue } from '../OfflineQueue';
-import { Event, Contact, SyncHealth } from '@phonelogai/types';
+import { Event, Contact } from '@phonelogai/types';
 
 // Mock dependencies
 jest.mock('@react-native-async-storage/async-storage');
@@ -524,7 +523,7 @@ describe('Enhanced Offline Queue System', () => {
       };
       
       expect(() => {
-        QueueItemSerializer.serialize(corruptedItem as any);
+        QueueItemSerializer.serialize(corruptedItem as Parameters<typeof QueueItemSerializer.serialize>[0]);
       }).not.toThrow(); // Should handle gracefully or validate
     });
 
@@ -576,7 +575,7 @@ describe('Enhanced Offline Queue System', () => {
     });
 
     it('should maintain performance with frequent operations', async () => {
-      const operations: Promise<any>[] = [];
+      const operations: Promise<unknown>[] = [];
       
       for (let i = 0; i < 100; i++) {
         operations.push(

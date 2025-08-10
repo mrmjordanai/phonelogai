@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { withMiddleware } from '../../../../middleware';
-import { RBACManager } from '@phonelogai/database/rbac';
+import { RBACManager } from '@phonelogai/database';
 import { supabase } from '@phonelogai/database';
 import type { RBACResource, RBACAction } from '@phonelogai/shared/rbac';
 import { isValidResource, isValidAction } from '@phonelogai/shared/rbac';

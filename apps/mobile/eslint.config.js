@@ -40,6 +40,13 @@ module.exports = [
         afterEach: 'readonly',
         beforeAll: 'readonly',
         afterAll: 'readonly',
+        // Base64 encoding/decoding
+        btoa: 'readonly',
+        atob: 'readonly',
+        // Performance API
+        performance: 'readonly',
+        // NodeJS types for React Native
+        NodeJS: 'readonly',
       },
     },
     plugins: {
@@ -47,6 +54,7 @@ module.exports = [
     },
     rules: {
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      'no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/no-explicit-any': 'warn',
       'prefer-const': 'error',
       'no-var': 'error',

@@ -70,7 +70,7 @@ export class PythonMLWrapper {
   private readonly maxMemoryMB: number;
   private readonly cacheEnabled: boolean;
   private readonly cacheDirectory: string;
-  private readonly resultCache: Map<string, { result: LayoutClassification; timestamp: number }>;
+  private readonly resultCache: Map<string, { result: LayoutClassificationNew; timestamp: number }>;
   
   constructor(options: MLServiceOptions = {}) {
     this.pythonPath = options.pythonPath || 'python3';
@@ -170,12 +170,7 @@ export class PythonMLWrapper {
           memoryUsage: 0,
           accuracy: 0.0
         },
-        fallbackRequired: true,
-        error: {
-          code: 'PYTHON_ML_ERROR',
-          message: getErrorMessage(error),
-          details: isError(error) ? error.stack : undefined
-        }
+        fallbackRequired: true
       };
     }
   }

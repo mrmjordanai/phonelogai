@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { withMiddleware } from '../../../../middleware';
-import { DatabaseRBAC } from '@phonelogai/database/rbac';
+import { DatabaseRBAC } from '@phonelogai/database';
 import { supabase } from '@phonelogai/database';
 import type { UserRole } from '@phonelogai/shared/rbac';
 import { isValidRole } from '@phonelogai/shared/rbac';

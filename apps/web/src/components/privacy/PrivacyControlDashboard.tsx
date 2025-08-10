@@ -11,7 +11,7 @@ import type {
   BulkPrivacyUpdate,
   PrivacyScope,
   AnonymizationLevel 
-} from '@phonelogai/database/security';
+} from '@phonelogai/database';
 
 interface PrivacyStats {
   totalRules: number;

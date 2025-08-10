@@ -167,6 +167,11 @@ export interface IngestionJob {
   started_at?: string;
   completed_at?: string;
   metadata?: Record<string, unknown>;
+  // Add missing properties used in parsers
+  filePath?: string;
+  fileContent?: string | Buffer;
+  mimeType?: string;
+  fileSize?: number; // Alias for file_size
 }
 
 // Layout classification results
@@ -175,15 +180,25 @@ export interface LayoutClassification {
   job_id: string;
   detected_format: FileFormat;
   carrier: CarrierType;
-  confidence: number; // 0-1
+  confidence: number | MLConfidenceScore; // Support both formats
   field_mappings: FieldMapping[];
   table_structure?: TableStructure;
   requires_manual_mapping: boolean;
   created_at: string;
   // Add missing properties used in MLClassificationService
   format: FileFormat;
-  overall: number;
+  overall?: number;
   fallbackRequired?: boolean;
+  // Add compatibility with LayoutClassificationNew
+  jobId?: string;
+  fieldMappings?: Record<string, string>;
+  detectedAt?: Date;
+  templateId?: string;
+  processingMetrics?: {
+    processingTime: number;
+    memoryUsage: number;
+    accuracy: number;
+  };
 }
 
 // Field mapping for data extraction
@@ -260,6 +275,20 @@ export interface ExtractionResult {
   };
   errors: IngestionError[];
   warnings: string[];
+  // Add missing properties used in parsers and workers
+  classification?: LayoutClassification;
+  data?: any[];
+  metrics?: {
+    totalRows: number;
+    processedRows: number;
+    skippedRows: number;
+    errorRows: number;
+    duplicateRows: number;
+    processingTime: number;
+    peakMemoryUsage: number;
+    throughputRowsPerSecond: number;
+    accuracy: number;
+  };
 }
 
 // ML model inference types
@@ -309,6 +338,62 @@ export interface JobProgress {
 
 // Remove duplicate ProcessingStep definition - already defined above
 
+// Type conversion functions for interface alignment
+export function convertLayoutClassificationToNew(old: LayoutClassification): LayoutClassificationNew {
+  return {
+    jobId: old.job_id || old.jobId || '',
+    format: old.format || old.detected_format,
+    carrier: old.carrier,
+    confidence: typeof old.confidence === 'number' ? 
+      { format: old.confidence, carrier: old.confidence, overall: old.confidence } : 
+      old.confidence,
+    fieldMappings: old.fieldMappings || {},
+    templateId: old.templateId,
+    detectedAt: old.detectedAt || new Date(),
+    processingMetrics: old.processingMetrics,
+    fallbackRequired: old.fallbackRequired || old.requires_manual_mapping
+  };
+}
+
+export function convertLayoutClassificationToOld(newClassification: LayoutClassificationNew): LayoutClassification {
+  return {
+    id: `${newClassification.jobId}-${Date.now()}`,
+    job_id: newClassification.jobId,
+    detected_format: newClassification.format,
+    format: newClassification.format,
+    carrier: newClassification.carrier,
+    confidence: newClassification.confidence,
+    field_mappings: newClassification.fieldMappings ? Object.entries(newClassification.fieldMappings).map(([source, target]) => ({
+      source_field: source,
+      target_field: target as keyof Event | keyof Contact,
+      data_type: 'string' as const,
+      transformation: undefined,
+      confidence: newClassification.confidence.overall,
+      is_required: false
+    })) : [],
+    requires_manual_mapping: newClassification.fallbackRequired || false,
+    created_at: newClassification.detectedAt.toISOString(),
+    jobId: newClassification.jobId,
+    fieldMappings: newClassification.fieldMappings,
+    detectedAt: newClassification.detectedAt,
+    processingMetrics: newClassification.processingMetrics,
+    fallbackRequired: newClassification.fallbackRequired
+  };
+}
+
+export function convertValidationResultToNew(old: ValidationResult): ValidationResultNew {
+  return {
+    success: old.success !== undefined ? old.success : old.is_valid,
+    data: old.data || [],
+    validationSummary: old.validationSummary || {
+      totalRows: 0,
+      validRows: 0,
+      invalidRows: old.errors?.length || 0,
+      errors: old.errors?.map(e => e.message) || []
+    }
+  };
+}
+
 // Validation schema
 export interface ValidationRule {
   field: string;
@@ -321,6 +406,18 @@ export interface ValidationResult {
   is_valid: boolean;
   errors: ValidationError[];
   warnings: ValidationWarning[];
+  // Add missing properties used in parsers
+  success?: boolean;
+  data?: any[];
+  validationSummary?: {
+    totalRows: number;
+    validRows: number;
+    invalidRows: number;
+    errors: string[];
+  };
+  // Add properties for backwards compatibility
+  events?: Partial<Event>[];
+  contacts?: Partial<Contact>[];
 }
 
 export interface ValidationError {
@@ -348,7 +445,7 @@ export interface DeduplicationResult {
 export interface MergeConflict {
   field: string;
   values: unknown[];
-  resolution: 'keep_first' | 'keep_last' | 'merge' | 'manual';
+  resolution: 'keep_first' | 'keep_last' | 'merge' | 'manual' | 'min' | 'max' | 'first' | 'last' | 'longest' | 'shortest';
 }
 
 // Manual mapping wizard

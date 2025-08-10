@@ -1,7 +1,6 @@
 import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
 import { Event, Contact, SyncHealth } from '@phonelogai/types';
 import { OfflineQueue, QueuedAction } from './OfflineQueue';
-import { ConflictResolver } from './ConflictResolver';
 import { CryptoService } from './CryptoService';
 import { supabase } from '@phonelogai/database';
 
@@ -66,8 +65,8 @@ class SyncServiceImpl {
     isMetered: false,
   };
 
-  private syncIntervalId?: NodeJS.Timeout;
-  private statusListeners: Array<(status: SyncStatus) => void> = [];
+  private syncIntervalId?: ReturnType<typeof setInterval>;
+  private statusListeners: Array<(_status: SyncStatus) => void> = [];
   private readonly DEFAULT_BATCH_SIZE = 50;
   private readonly DEFAULT_RETRY_DELAY = 5000; // 5 seconds
   private readonly MAX_BACKOFF_DELAY = 300000; // 5 minutes
@@ -247,7 +246,7 @@ class SyncServiceImpl {
   /**
    * Subscribe to sync status updates
    */
-  public onSyncStatusChanged(callback: (status: SyncStatus) => void): () => void {
+  public onSyncStatusChanged(callback: (_status: SyncStatus) => void): () => void {
     this.statusListeners.push(callback);
     
     // Return unsubscribe function
@@ -384,14 +383,14 @@ class SyncServiceImpl {
       
       // Encrypt if enabled
       if (options.enableEncryption) {
-        const encryptedData = await CryptoService.encryptBatch(
+        await CryptoService.encryptBatch(
           eventData.map(e => ({ id: e.id, data: e }))
         );
         // Process encrypted data...
       }
 
       // Send to server
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('events')
         .upsert(eventData, { 
           onConflict: 'id',
@@ -427,7 +426,7 @@ class SyncServiceImpl {
   /**
    * Sync contacts to server
    */
-  private async syncContacts(contacts: QueuedAction[], options: SyncOptions): Promise<SyncResult> {
+  private async syncContacts(contacts: QueuedAction[], _options: SyncOptions): Promise<SyncResult> {
     const result: SyncResult = {
       success: false,
       processedItems: 0,
@@ -442,7 +441,7 @@ class SyncServiceImpl {
     try {
       const contactData = contacts.map(item => item.payload as Contact);
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('contacts')
         .upsert(contactData, { 
           onConflict: 'id',
@@ -476,7 +475,7 @@ class SyncServiceImpl {
   /**
    * Sync health updates to server
    */
-  private async syncHealthUpdates(syncHealthItems: QueuedAction[], options: SyncOptions): Promise<SyncResult> {
+  private async syncHealthUpdates(syncHealthItems: QueuedAction[], _options: SyncOptions): Promise<SyncResult> {
     const result: SyncResult = {
       success: false,
       processedItems: 0,
@@ -491,7 +490,7 @@ class SyncServiceImpl {
     try {
       const syncHealthData = syncHealthItems.map(item => item.payload as SyncHealth);
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('sync_health')
         .upsert(syncHealthData, { 
           onConflict: 'id',
@@ -553,7 +552,7 @@ class SyncServiceImpl {
    * Setup network monitoring
    */
   private async setupNetworkMonitoring(): Promise<void> {
-    const unsubscribe = NetInfo.addEventListener((state: NetInfoState) => {
+    NetInfo.addEventListener((state: NetInfoState) => {
       this.networkInfo = {
         isConnected: state.isConnected || false,
         connectionType: state.type,

@@ -213,7 +213,7 @@ describe('ConflictQueue', () => {
       });
 
       const startTime = Date.now();
-      const result = await ConflictQueue.processBatches(processor, {
+      await ConflictQueue.processBatches(processor, {
         processingTimeout: 500 // 500ms timeout
       });
       const duration = Date.now() - startTime;
