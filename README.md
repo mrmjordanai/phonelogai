@@ -1,29 +1,27 @@
 # PhoneLog AI - Call/SMS Intelligence Platform
 
-A comprehensive platform for analyzing call and SMS data with AI-powered insights, built with React Native/Expo (mobile), Next.js (web), and Supabase (backend).
+A comprehensive mobile application for analyzing call and SMS data with AI-powered insights, built with React Native/Expo and Supabase backend.
 
 ## 🏗️ Architecture
 
 ### Technology Stack
-- **Frontend**: React Native + Expo (mobile), Next.js + React (web)
+- **Frontend**: React Native + Expo (mobile-only)
 - **Backend**: Supabase (Postgres + pgvector + Auth + Storage)
 - **Database**: PostgreSQL with Row-Level Security (RLS)
-- **AI/ML**: OpenRouter LLM integration (multi-model) + Python workers
-- **Cache/Queue**: Redis
-- **Billing**: Stripe
-- **Deployment**: Vercel (web), EAS (mobile)
+- **AI/ML**: OpenRouter LLM integration + Python workers
+- **Deployment**: EAS (mobile)
 
 ### Project Structure
 ```
 phonelogai/
 ├── apps/
-│   ├── web/              # Next.js web application
 │   └── mobile/           # React Native/Expo mobile app
 ├── packages/
-│   ├── shared/           # Shared components and utilities
+│   ├── shared/           # Mobile utilities and RBAC
 │   ├── types/            # TypeScript type definitions
-│   └── database/         # Database client and migrations
-└── docs/                 # Documentation
+│   ├── database/         # Supabase client and migrations
+│   └── data-ingestion/   # AI-powered data processing
+└── workers/              # Python ML workers
 ```
 
 ## 🚀 Quick Start
@@ -56,23 +54,22 @@ phonelogai/
    npm run migrate
    ```
 
-4. **Start Development Servers**
+4. **Start Mobile Development**
    ```bash
-   # Start web application
-   npm run web
-
    # Start mobile application
+   npm run dev
+   # or
    npm run mobile
    ```
 
 ## 📱 Features
 
 ### Core Functionality
-- **Data Ingestion**: Upload carrier CDR files, CSV data, manual entry
+- **Data Ingestion**: AI-powered file parsing for carrier data
 - **Mobile Sync**: Android on-device call/SMS log collection (iOS manual import)
-- **Dashboards**: Time Explorer, Heat Maps, Contact Intelligence
-- **NLQ (Natural Language Queries)**: Chat with your data using AI
+- **Events Screen**: Comprehensive call/SMS timeline with filtering and search
 - **Privacy Controls**: Per-contact visibility settings and anonymization
+- **Offline Support**: Complete offline functionality with intelligent sync
 
 ### Security & Compliance
 - Row-Level Security (RLS) at database level
@@ -92,11 +89,11 @@ phonelogai/
 
 ### Available Scripts
 ```bash
-npm run dev         # Start all development servers
-npm run build       # Build all applications
-npm run lint        # Run ESLint
+npm run dev         # Start mobile development server  
+npm run build       # Build mobile application
+npm run lint        # Run ESLint on mobile app
 npm run type-check  # Run TypeScript checks
-npm run test        # Run tests
+npm run test        # Run mobile tests
 ```
 
 ### Database Migrations
@@ -109,9 +106,11 @@ npm run reset       # Reset database (development only)
 
 ### Mobile Development
 ```bash
-npm run mobile      # Start Expo development server
-npm run android     # Run on Android device/emulator
-npm run ios         # Run on iOS device/simulator
+# Direct Expo commands (recommended)
+cd apps/mobile
+npx expo start      # Start Expo development server
+npx expo start --android    # Run on Android
+npx expo start --ios        # Run on iOS
 ```
 
 ## 📊 Database Schema
@@ -151,30 +150,24 @@ Automatic logging of:
 
 ## 🚀 Deployment
 
-### Web Application (Vercel)
-```bash
-npm run build:web
-vercel deploy
-```
-
 ### Mobile Application (EAS)
 ```bash
 cd apps/mobile
-eas build --platform all
-eas submit --platform all
+eas build --platform all      # Build for iOS and Android
+eas submit --platform all     # Submit to app stores
 ```
 
-### Database (Supabase)
-Database migrations are automatically applied via Supabase CLI or manual SQL execution.
+### Database (Supabase)  
+Database migrations are applied via scripts in `packages/database/scripts/`
 
 ## 📈 Performance Targets
 
 | Component | Target Performance |
 |-----------|-------------------|
 | **Data Ingestion** | ≤100k rows in <5min, ≤1M rows in <30min |
-| **Dashboard Load** | Event Table <1.5s, Heat-Map <2s |
-| **NLQ Response** | p50 <2s, p95 <5s |
-| **Mobile Sync** | Offline queue, Wi-Fi preferred |
+| **Events Screen** | Load <1.5s, Infinite scroll <500ms |
+| **Mobile Sync** | Offline queue, Wi-Fi preferred, <50MB memory |
+| **Conflict Resolution** | <5s per 1000 events, 85%+ auto-resolution |
 
 ## 🤝 Contributing
 
