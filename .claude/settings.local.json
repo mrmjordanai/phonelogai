@@ -29,7 +29,8 @@
       "mcp__supabase-community-supabase-mcp__list_projects",
       "Bash(node:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git branch:*)"
     ],
     "deny": []
   }

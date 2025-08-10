@@ -29,24 +29,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Commands
 
-### Monorepo Management (Turbo)
+### Mobile-Only Development
 ```bash
-# Start all development servers
-npm run dev
+# Start mobile development server
+npm run dev                    # Starts Expo mobile app
+npm run mobile                 # Alternative mobile start command
 
-# Start specific applications
-npm run web                    # Next.js web app on port 3000
-npm run mobile                 # Expo mobile app
-
-# Build all applications
-npm run build
+# Build mobile application  
+npm run build                  # Build mobile app for production
 
 # Linting and type checking
-npm run lint                   # ESLint across all packages
-npm run type-check            # TypeScript checking across all packages
+npm run lint                   # ESLint for mobile app
+npm run type-check            # TypeScript checking for mobile app
 
 # Testing
-npm run test                  # Run all tests
+npm run test                  # Run mobile app tests
 
 # Clean build artifacts
 npm run clean                 # Clean all build outputs and node_modules
@@ -78,36 +75,26 @@ npx jest --watch                       # Run tests in watch mode
 
 ### Individual Package Development
 ```bash
-# Web application (apps/web)
-cd apps/web
-npm run dev                   # Development server
-npm run build                 # Production build
-npm run start                 # Start production server
-npm run lint                  # ESLint for web app
-npm run type-check           # TypeScript checking
-
-# Mobile application (apps/mobile)
+# Mobile application commands
 cd apps/mobile
 npm run start                 # Start Expo development server
 npm run android              # Run on Android device/emulator
 npm run ios                  # Run on iOS device/simulator
-npm run web                  # Run Expo web version
 ```
 
-## Monorepo Architecture
+## Mobile-Only Architecture
 
 ### Workspace Structure
-- **apps/web**: Next.js web application with App Router
 - **apps/mobile**: React Native/Expo mobile application
-- **packages/shared**: Shared components, utilities, and i18n
+- **packages/shared**: Mobile utilities, RBAC, and shared functions
 - **packages/types**: TypeScript type definitions
 - **packages/database**: Supabase client, migrations, and database utilities
 
 ### Package Dependencies
-- All packages depend on `@phonelogai/types` for shared TypeScript definitions
-- Web and mobile apps depend on `@phonelogai/shared` for common utilities
+- Mobile app depends on `@phonelogai/types` for shared TypeScript definitions
+- Mobile app depends on `@phonelogai/shared` for mobile utilities and RBAC
 - Database operations use `@phonelogai/database` package
-- Turbo manages build dependencies and caching across packages
+- Simplified monorepo focused on mobile development
 
 ### Key Architectural Patterns
 
@@ -119,10 +106,10 @@ npm run web                  # Run Expo web version
 - **Type generation**: Database types auto-generated in `src/types.ts`
 
 #### Authentication Flow
-- **Supabase Auth**: Unified authentication across web and mobile
-- **Session management**: Web uses cookies, mobile uses AsyncStorage
-- **Auth providers**: Both applications use identical AuthProvider pattern
+- **Supabase Auth**: Mobile authentication with AsyncStorage session management
+- **Auth providers**: Mobile AuthProvider pattern with React Native integration
 - **Role-based access**: 5-tier RBAC system (owner > admin > analyst > member > viewer)
+- **Mobile security**: Secure token storage and biometric authentication support
 
 #### Privacy Architecture
 - **Per-contact privacy rules**: Granular visibility controls (private/team/public)
@@ -146,10 +133,11 @@ npm run web                  # Run Expo web version
 - **Composite Key Matching**: `(line_id, ts±1s, number, direction, duration)` for duplicate detection
 
 #### Component Architecture
-- **Shared components**: Common UI components in `packages/shared`
-- **Platform-specific implementations**: Web uses Tailwind + Headless UI, Mobile uses React Native components
-- **i18n integration**: React-i18next setup for internationalization
-- **Loading states**: Consistent loading patterns across both platforms
+- **Mobile components**: React Native UI components optimized for mobile
+- **Shared utilities**: Common business logic and RBAC in `packages/shared`
+- **i18n integration**: React-i18next setup for mobile internationalization
+- **Loading states**: Consistent mobile loading patterns and animations
+- **Navigation**: React Navigation for mobile screen management
 
 ## Database Schema Understanding
 
