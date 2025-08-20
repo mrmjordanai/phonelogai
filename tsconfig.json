@@ -9,7 +9,7 @@
     "noEmit": true,
     "esModuleInterop": true,
     "module": "esnext",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "preserve",
@@ -17,8 +17,12 @@
     "downlevelIteration": true,
     "baseUrl": ".",
     "paths": {
-      "@phonelogai/shared": ["./packages/shared/src"],
-      "@phonelogai/types": ["./packages/types/src"]
+      "@phonelogai/shared": ["./packages/shared/dist"],
+      "@phonelogai/shared/*": ["./packages/shared/dist/*"],
+      "@phonelogai/types": ["./packages/types/dist"],
+      "@phonelogai/types/*": ["./packages/types/dist/*"],
+      "@phonelogai/database": ["./packages/database/dist"],
+      "@phonelogai/database/*": ["./packages/database/dist/*"]
     }
   },
   "include": [
@@ -27,6 +31,7 @@
   ],
   "exclude": [
     "node_modules",
+    "**/dist",
     "**/*.spec.ts",
     "**/*.test.ts"
   ]

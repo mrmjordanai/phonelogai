@@ -1,5 +1,6 @@
 // Re-export types (avoid conflicts with RBAC types)
-export type { Database } from '@phonelogai/database';
+// TODO: Fix circular dependency in Phase 2 - temporarily commented out
+// export type { Database } from '@phonelogai/database';
 
 // Export shared utilities
 export * from './utils';

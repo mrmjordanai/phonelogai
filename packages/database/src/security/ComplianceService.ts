@@ -468,25 +468,44 @@ export class ComplianceService {
    * Get compliance statistics
    */
   async getComplianceStatistics(organizationId?: string): Promise<ComplianceStats> {
-    let baseQuery = this.supabase.from('data_subject_requests');
+    // Create properly typed queries
+    let totalQuery = this.supabase.from('data_subject_requests').select('*', { count: 'exact', head: true });
+    let typeQuery = this.supabase.from('data_subject_requests').select('request_type');
+    let statusQuery = this.supabase.from('data_subject_requests').select('status');
+    let overdueQuery = this.supabase.from('data_subject_requests').select('*', { count: 'exact', head: true });
+    let recentQuery = this.supabase.from('data_subject_requests').select('*', { count: 'exact', head: true });
     
     if (organizationId) {
-      baseQuery = baseQuery.eq('organization_id', organizationId);
+      totalQuery = totalQuery.eq('organization_id', organizationId);
+      typeQuery = typeQuery.eq('organization_id', organizationId);
+      statusQuery = statusQuery.eq('organization_id', organizationId);
+      overdueQuery = overdueQuery.eq('organization_id', organizationId);
+      recentQuery = recentQuery.eq('organization_id', organizationId);
     }
 
+    // Add additional filters
+    overdueQuery = overdueQuery.lt('due_date', new Date().toISOString()).neq('status', 'completed');
+    recentQuery = recentQuery.gte('requested_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
+
     const [totalResult, typeStats, statusStats, overdueResult, recentResult] = await Promise.all([
-      baseQuery.select('*', { count: 'exact', head: true }),
-      baseQuery.select('request_type'),
-      baseQuery.select('status'),
-      baseQuery.select('*', { count: 'exact', head: true }).lt('due_date', new Date().toISOString()).neq('status', 'completed'),
-      baseQuery.select('*', { count: 'exact', head: true }).gte('requested_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
-    ]);
+        totalQuery,
+        typeQuery,
+        statusQuery,
+        overdueQuery,
+        recentQuery
+      ]);
 
     // Calculate average processing time
-    const { data: completedRequests } = await baseQuery
+    let completedQuery = this.supabase.from('data_subject_requests')
       .select('requested_at, completed_at')
       .eq('status', 'completed')
       .not('completed_at', 'is', null);
+    
+    if (organizationId) {
+      completedQuery = completedQuery.eq('organization_id', organizationId);
+    }
+    
+    const { data: completedRequests } = await completedQuery;
 
     let averageProcessingTime = 0;
     if (completedRequests && completedRequests.length > 0) {

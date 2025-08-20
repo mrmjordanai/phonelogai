@@ -599,35 +599,48 @@ export class SecurityMonitoringService extends EventEmitter {
    * Get security metrics
    */
   async getSecurityMetrics(organizationId?: string): Promise<SecurityMetrics> {
-    let baseQuery = this.supabase.from('security_events');
+    // Create properly typed queries
+    let totalQuery = this.supabase.from('security_events').select('*', { count: 'exact', head: true });
+    let criticalQuery = this.supabase.from('security_events').select('*', { count: 'exact', head: true });
+    let highQuery = this.supabase.from('security_events').select('*', { count: 'exact', head: true });
+    let recentQuery = this.supabase.from('security_events').select('*', { count: 'exact', head: true });
+    let actorsQuery = this.supabase.from('security_events').select('actor_id');
+    let ipsQuery = this.supabase.from('security_events').select('ip_address');
     
     if (organizationId) {
-      baseQuery = baseQuery.eq('organization_id', organizationId);
+      totalQuery = totalQuery.eq('organization_id', organizationId);
+      criticalQuery = criticalQuery.eq('organization_id', organizationId);
+      highQuery = highQuery.eq('organization_id', organizationId);
+      recentQuery = recentQuery.eq('organization_id', organizationId);
+      actorsQuery = actorsQuery.eq('organization_id', organizationId);
+      ipsQuery = ipsQuery.eq('organization_id', organizationId);
     }
 
+    // Add filters to queries
+    criticalQuery = criticalQuery.eq('threat_level', 'critical').is('resolved_at', null);
+    highQuery = highQuery.eq('threat_level', 'high').is('resolved_at', null);
+    recentQuery = recentQuery.gte('detected_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+    actorsQuery = actorsQuery.not('actor_id', 'is', null).limit(10);
+    ipsQuery = ipsQuery.not('ip_address', 'is', null).limit(10);
+
     const [totalResult, unresolvedCritical, unresolvedHigh, recentEvents, topActors, topIps] = await Promise.all([
-      baseQuery.select('*', { count: 'exact', head: true }),
-      baseQuery.select('*', { count: 'exact', head: true })
-        .eq('threat_level', 'critical')
-        .is('resolved_at', null),
-      baseQuery.select('*', { count: 'exact', head: true })
-        .eq('threat_level', 'high')
-        .is('resolved_at', null),
-      baseQuery.select('*', { count: 'exact', head: true })
-        .gte('detected_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()),
-      baseQuery.select('actor_id')
-        .not('actor_id', 'is', null)
-        .limit(10),
-      baseQuery.select('ip_address')
-        .not('ip_address', 'is', null)
-        .limit(10)
+      totalQuery,
+      criticalQuery,
+      highQuery,
+      recentQuery,
+      actorsQuery,
+      ipsQuery
     ]);
 
     // Calculate average resolution time
-    const { data: resolvedEvents } = await baseQuery
+    let resolvedQuery = this.supabase.from('security_events')
       .select('detected_at, resolved_at')
       .not('resolved_at', 'is', null)
       .limit(100);
+    if (organizationId) {
+      resolvedQuery = resolvedQuery.eq('organization_id', organizationId);
+    }
+    const { data: resolvedEvents } = await resolvedQuery;
 
     let averageResolutionTime = 0;
     if (resolvedEvents && resolvedEvents.length > 0) {

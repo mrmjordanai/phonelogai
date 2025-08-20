@@ -5,3 +5,4 @@ export { useDebouncedCallback, useDebounce } from './useDebounce';
 export { usePerformanceMonitoring } from './usePerformanceMonitoring';
 export { useErrorHandling } from './useErrorHandling';
 export { useAccessibility } from './useAccessibility';
+export { useExport } from './useExport';

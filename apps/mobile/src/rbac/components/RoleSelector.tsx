@@ -345,7 +345,7 @@ export function RoleBadge({
   style,
 }: RoleBadgeProps): JSX.Element {
   const roleInfo = ROLE_DISPLAY[role];
-  const colors = {
+  const colors: Record<UserRole, { bg: string; text: string; border: string }> = {
     owner: { bg: '#f3e8ff', text: '#7c3aed', border: '#c4b5fd' },
     admin: { bg: '#fef2f2', text: '#dc2626', border: '#fca5a5' },
     analyst: { bg: '#eff6ff', text: '#2563eb', border: '#93c5fd' },

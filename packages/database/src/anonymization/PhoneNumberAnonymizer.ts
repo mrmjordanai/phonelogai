@@ -1,7 +1,7 @@
 // Phone Number Anonymization for Call/SMS Intelligence Platform
 // Provides format-preserving masking and tokenization with reversible encryption
 
-import crypto from 'crypto'
+import * as crypto from 'crypto'
 import type { AuditLogInsert } from '../types'
 import { supabaseAdmin } from '../client'
 
@@ -517,7 +517,7 @@ export class PhoneNumberAnonymizer {
     
     // Create cipher
     const iv = crypto.randomBytes(16)
-    const cipher = crypto.createCipher('aes-256-gcm', key)
+    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv)
     
     let encrypted = cipher.update(phoneNumber, 'utf8', 'hex')
     encrypted += cipher.final('hex')
@@ -587,7 +587,7 @@ export class PhoneNumberAnonymizer {
       const authTag = Buffer.from(authTagHex, 'hex')
       
       const key = await this.getEncryptionKey(this.config.encryptionKeyId)
-      const decipher = crypto.createDecipher('aes-256-gcm', key)
+      const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv)
       decipher.setAuthTag(authTag)
       
       let decrypted = decipher.update(encrypted, 'hex', 'utf8')

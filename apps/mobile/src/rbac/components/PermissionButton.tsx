@@ -32,6 +32,7 @@ interface PermissionButtonProps {
   textStyle?: TextStyle;
   disabled?: boolean;
   variant?: 'primary' | 'secondary' | 'danger' | 'success';
+  children?: React.ReactNode;
 }
 
 export function PermissionButton({
@@ -49,6 +50,7 @@ export function PermissionButton({
   textStyle,
   disabled,
   variant = 'primary',
+  children,
 }: PermissionButtonProps): JSX.Element | null {
   const { role, hasPermission, loading: rbacLoading, offline } = useRBAC();
   const { allowed, loading: permissionLoading, check } = usePermission(resource, action, resourceId);
@@ -188,7 +190,7 @@ export function PermissionButton({
       disabled={disabled || isLoading}
       activeOpacity={0.7}
     >
-      <Text style={getTextStyle()}>{title}</Text>
+      {children || <Text style={getTextStyle()}>{title}</Text>}
       {offline && (
         <View style={styles.offlineIndicator}>
           <Text style={styles.offlineText}>○</Text>
@@ -346,8 +348,8 @@ export function PermissionIconButton({
   return (
     <PermissionButton
       title={showTitle ? title : ''}
-      style={[styles.iconButton, style]}
-      textStyle={[styles.iconButtonText, textStyle]}
+      style={[styles.iconButton, style] as ViewStyle}
+      textStyle={[styles.iconButtonText, textStyle] as TextStyle}
       {...props}
     >
       <View style={styles.iconButtonContent}>

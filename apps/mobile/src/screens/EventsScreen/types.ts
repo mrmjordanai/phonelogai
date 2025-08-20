@@ -1,21 +1,5 @@
 // import { Event, Contact, PrivacyRule } from '@phonelogai/types';
 // Temporary workaround for module resolution issues
-type Event = {
-  id: string;
-  user_id: string;
-  line_id: string;
-  ts: string;
-  number: string;
-  direction: 'inbound' | 'outbound';
-  type: 'call' | 'sms';
-  duration?: number;
-  content?: string;
-  contact_id?: string;
-  status?: 'answered' | 'missed' | 'busy' | 'declined';
-  source?: string;
-  created_at: string;
-  updated_at: string;
-};
 
 type Contact = {
   id: string;
@@ -72,7 +56,7 @@ export interface UIEvent {
 }
 
 // Filter types
-export interface EventFilters {
+export interface EventFiltersState {
   search: string;
   type?: 'call' | 'sms' | 'all';
   direction?: 'inbound' | 'outbound' | 'all';
@@ -113,7 +97,7 @@ export interface EventsState {
   error: string | null;
   refreshing: boolean;
   pagination: EventsPagination;
-  filters: EventFilters;
+  filters: EventFiltersState;
   sort: EventSortConfig;
 }
 
@@ -131,7 +115,7 @@ export type EventAction =
 export interface QuickFilter {
   id: string;
   name: string;
-  filters: Partial<EventFilters>;
+  filters: Partial<EventFiltersState>;
   icon?: string;
 }
 

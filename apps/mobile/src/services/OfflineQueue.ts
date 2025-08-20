@@ -79,9 +79,9 @@ class OfflineQueueService {
   private isInitialized = false;
 
   private constructor() {
-    this.queueManager = QueueManager.getInstance();
-    this.syncEngine = SyncEngine.getInstance();
-    this.networkDetector = NetworkDetector.getInstance();
+    this.queueManager = QueueManager;
+    this.syncEngine = SyncEngine;
+    this.networkDetector = NetworkDetector;
   }
 
   public static getInstance(): OfflineQueueService {
@@ -113,7 +113,7 @@ class OfflineQueueService {
   /**
    * Add an event to the queue with enhanced processing
    */
-  public async enqueueEvent(event: Event, actionType: 'CREATE_EVENT' | 'UPDATE_EVENT' | 'DELETE_EVENT' = 'CREATE_EVENT'): Promise<string> {
+  public async enqueueEvent(event: Event, actionType: 'CREATE_EVENT' | 'UPDATE_EVENT' = 'CREATE_EVENT'): Promise<string> {
     await this.ensureInitialized();
     
     const priority = this.mapLegacyPriority('high');

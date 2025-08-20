@@ -2,8 +2,12 @@
   "name": "@phonelogai/database",
   "version": "1.0.0",
   "private": true,
-  "main": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "scripts": {
+    "build": "tsc",
+    "lint": "eslint .",
+    "type-check": "tsc --noEmit",
     "setup": "node scripts/setup.js",
     "migrate": "node scripts/migrate.js",
     "seed": "node scripts/seed.js",

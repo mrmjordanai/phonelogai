@@ -8,7 +8,7 @@ import { AuthScreen } from '../screens/AuthScreen';
 import { DashboardScreen } from '../screens/DashboardScreen';
 import { ContactsScreen } from '../screens/ContactsScreen';
 import { EventsScreen } from '../screens/EventsScreen';
-import { SettingsScreen } from '../screens/SettingsScreen';
+import { SettingsStack } from './SettingsStack';
 import { ChatScreen } from '../screens/ChatScreen';
 
 const Stack = createStackNavigator();
@@ -32,7 +32,7 @@ function MainTabNavigator() {
           } else if (route.name === 'Settings') {
             iconName = focused ? 'settings' : 'settings-outline';
           } else {
-            iconName = 'circle';
+            iconName = 'ellipse';
           }
 
           return <Ionicons name={iconName} size={size} color={color} />;
@@ -46,7 +46,7 @@ function MainTabNavigator() {
       <Tab.Screen name="Events" component={EventsScreen} />
       <Tab.Screen name="Contacts" component={ContactsScreen} />
       <Tab.Screen name="Chat" component={ChatScreen} />
-      <Tab.Screen name="Settings" component={SettingsScreen} />
+      <Tab.Screen name="Settings" component={SettingsStack} />
     </Tab.Navigator>
   );
 }

@@ -5,20 +5,20 @@ export interface ErrorInfo {
   message: string;
   code?: string;
   timestamp: Date;
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
   retryable?: boolean;
   userFriendly?: boolean;
 }
 
 interface UseErrorHandlingProps {
-  onError?: (error: ErrorInfo) => void;
+  onError?: (_error: ErrorInfo) => void;
   maxRetries?: number;
   retryDelay?: number;
 }
 
 interface RetryableOperation<T> {
   operation: () => Promise<T>;
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
   maxRetries?: number;
   retryDelay?: number;
 }
@@ -33,7 +33,7 @@ export function useErrorHandling({
   const retryAttempts = useRef(new Map<string, number>());
 
   // Convert raw error to ErrorInfo
-  const normalizeError = useCallback((error: any, context?: Record<string, any>): ErrorInfo => {
+  const normalizeError = useCallback((error: unknown, context?: Record<string, unknown>): ErrorInfo => {
     const id = `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
     // Handle different error types
@@ -60,15 +60,21 @@ export function useErrorHandling({
       };
     }
     
-    if (error?.message) {
+    if (error && typeof error === 'object' && 'message' in error) {
+      const errorObj = error as { 
+        message: string; 
+        code?: string | number; 
+        status?: number; 
+        [key: string]: unknown; 
+      };
       return {
         id,
-        message: error.message,
-        code: error.code || error.status?.toString(),
+        message: errorObj.message,
+        code: errorObj.code?.toString() || errorObj.status?.toString(),
         timestamp: new Date(),
         context: { ...context, originalError: error },
         retryable: isRetryableError(error),
-        userFriendly: getUserFriendlyMessage(error) !== error.message,
+        userFriendly: getUserFriendlyMessage(error) !== errorObj.message,
       };
     }
     
@@ -83,24 +89,31 @@ export function useErrorHandling({
   }, []);
 
   // Check if error is retryable
-  const isRetryableError = useCallback((error: any): boolean => {
+  const isRetryableError = useCallback((error: unknown): boolean => {
+    const errorObj = error as { 
+      code?: string | number; 
+      message?: string; 
+      status?: number; 
+      [key: string]: unknown; 
+    };
+    
     // Network errors are usually retryable
-    if (error?.code === 'NETWORK_ERROR' || error?.message?.includes('network')) {
+    if (errorObj?.code === 'NETWORK_ERROR' || errorObj?.message?.includes('network')) {
       return true;
     }
     
     // Timeout errors are retryable
-    if (error?.code === 'TIMEOUT' || error?.message?.includes('timeout')) {
+    if (errorObj?.code === 'TIMEOUT' || errorObj?.message?.includes('timeout')) {
       return true;
     }
     
     // 5xx server errors are retryable
-    if (error?.status >= 500 && error?.status < 600) {
+    if (errorObj?.status && typeof errorObj.status === 'number' && errorObj.status >= 500 && errorObj.status < 600) {
       return true;
     }
     
     // Rate limiting is retryable
-    if (error?.status === 429) {
+    if (errorObj?.status === 429) {
       return true;
     }
     
@@ -113,41 +126,42 @@ export function useErrorHandling({
     ];
     
     return retryableErrors.some(msg => 
-      error?.message?.toLowerCase().includes(msg.toLowerCase())
+      errorObj?.message?.toLowerCase().includes(msg.toLowerCase())
     );
   }, []);
 
   // Get user-friendly error message
-  const getUserFriendlyMessage = useCallback((error: any): string => {
-    const message = error?.message || error;
+  const getUserFriendlyMessage = useCallback((error: unknown): string => {
+    const errorObj = error as { message?: string; [key: string]: unknown };
+    const message = errorObj?.message || error;
     
     // Network errors
-    if (message.includes('network') || message.includes('fetch')) {
+    if (typeof message === 'string' && (message.includes('network') || message.includes('fetch'))) {
       return 'Please check your internet connection and try again.';
     }
     
     // Timeout errors
-    if (message.includes('timeout')) {
+    if (typeof message === 'string' && message.includes('timeout')) {
       return 'The request took too long. Please try again.';
     }
     
     // Server errors
-    if (error?.status >= 500) {
+    if (errorObj?.status && typeof errorObj.status === 'number' && errorObj.status >= 500) {
       return 'Our servers are experiencing issues. Please try again in a moment.';
     }
     
     // Rate limiting
-    if (error?.status === 429) {
+    if (errorObj?.status === 429) {
       return 'Too many requests. Please wait a moment and try again.';
     }
     
     // Permission errors
-    if (error?.status === 403 || message.includes('permission')) {
+    if (errorObj?.status === 403 || (typeof message === 'string' && message.includes('permission'))) {
       return 'You don\'t have permission to perform this action.';
     }
     
     // Not found errors
-    if (error?.status === 404) {
+    if (errorObj?.status === 404) {
       return 'The requested information could not be found.';
     }
     
@@ -160,7 +174,7 @@ export function useErrorHandling({
   }, []);
 
   // Add error to the list
-  const addError = useCallback((error: any, context?: Record<string, any>) => {
+  const addError = useCallback((error: unknown, context?: Record<string, unknown>) => {
     const errorInfo = normalizeError(error, context);
     
     setErrors(prev => {
@@ -206,7 +220,7 @@ export function useErrorHandling({
     retryDelay: operationRetryDelay = retryDelay
   }: RetryableOperation<T>): Promise<T> => {
     const operationId = `op_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    let lastError: any;
+    let lastError: unknown;
     
     for (let attempt = 1; attempt <= operationMaxRetries; attempt++) {
       try {
@@ -256,7 +270,7 @@ export function useErrorHandling({
   // Handle async operation with error handling
   const handleAsyncOperation = useCallback(async <T>(
     operation: () => Promise<T>,
-    context?: Record<string, any>
+    context?: Record<string, unknown>
   ): Promise<T | null> => {
     try {
       return await operation();

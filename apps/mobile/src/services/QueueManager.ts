@@ -4,8 +4,8 @@ import {
   QueuePriority, 
   QueueItemUtils 
 } from './QueueItem';
-import { OfflineStorage, StorageFilter } from './OfflineStorage';
-import { NetworkDetector, NetworkState } from './NetworkDetector';
+import { OfflineStorageService, StorageFilter } from './OfflineStorage';
+import { NetworkDetectorService, NetworkState } from './NetworkDetector';
 import { Event, Contact, SyncHealth } from '@phonelogai/types';
 
 export interface QueueManagerConfig {
@@ -55,8 +55,8 @@ export type ProcessingCallback = (_item: QueueItem) => Promise<ProcessingResult>
 class QueueManagerService {
   private static instance: QueueManagerService;
   private config: QueueManagerConfig;
-  private storage: OfflineStorage;
-  private networkDetector: NetworkDetector;
+  private storage: OfflineStorageService;
+  private networkDetector: NetworkDetectorService;
   private processingStats: ProcessingStats;
   private isProcessing = false;
   private processingQueue = new Set<string>(); // Track items being processed
@@ -76,8 +76,8 @@ class QueueManagerService {
       ...config
     };
 
-    this.storage = OfflineStorage.getInstance();
-    this.networkDetector = NetworkDetector.getInstance();
+    this.storage = OfflineStorageService.getInstance();
+    this.networkDetector = NetworkDetectorService.getInstance();
     
     this.processingStats = {
       totalProcessed: 0,
@@ -107,7 +107,7 @@ class QueueManagerService {
       await this.networkDetector.initialize();
       
       // Set up network state listener
-      this.networkStateListener = this.networkDetector.addListener((state) => {
+      this.networkStateListener = this.networkDetector.addListener((state: NetworkState) => {
         this.handleNetworkChange(state);
       });
 
@@ -484,6 +484,7 @@ class QueueManagerService {
    * Private helper methods
    */
   private async processBatch(items: QueueItem[]): Promise<BatchProcessingResult> {
+    const startTime = Date.now();
     const results: ProcessingResult[] = [];
     const concurrentProcessing: Promise<ProcessingResult>[] = [];
 
@@ -508,12 +509,14 @@ class QueueManagerService {
 
     const successful = results.filter(r => r.success).length;
     const failed = results.length - successful;
+    const processingTime = Date.now() - startTime;
 
     return {
       totalItems: items.length,
       successful,
       failed,
-      results
+      results,
+      processingTime
     };
   }
 
@@ -686,4 +689,5 @@ class QueueManagerService {
   }
 }
 
+export { QueueManagerService };
 export const QueueManager = QueueManagerService.getInstance();

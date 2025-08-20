@@ -2,7 +2,7 @@ import { UserRole, ROLE_HIERARCHY } from './constants';
 
 // Role permission utilities
 export const hasPermission = (userRole: UserRole, requiredRole: UserRole): boolean => {
-  return ROLE_HIERARCHY[userRole] >= ROLE_HIERARCHY[requiredRole];
+  return (ROLE_HIERARCHY as Record<UserRole, number>)[userRole] >= (ROLE_HIERARCHY as Record<UserRole, number>)[requiredRole];
 };
 
 // Date formatting utilities

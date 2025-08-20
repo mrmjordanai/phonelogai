@@ -23,6 +23,16 @@ import {
   canManageRole,
 } from '@phonelogai/shared/rbac';
 
+// Helper function to get access token from current session
+const getAccessToken = async (): Promise<string | null> => {
+  const { data: { session }, error } = await supabase.auth.getSession();
+  if (error || !session) {
+    console.error('Failed to get session:', error);
+    return null;
+  }
+  return session.access_token;
+};
+
 const STORAGE_KEYS = {
   SESSION: 'supabase.session',
   RBAC_USER: 'rbac.user',
@@ -67,7 +77,7 @@ interface EnhancedAuthContextType {
   getLastSyncTime: () => Promise<Date | null>;
   
   // Offline handling
-  queueOfflineAction: (_action: unknown) => Promise<void>;
+  queueOfflineAction: (_action: Record<string, unknown>) => Promise<void>;
   processOfflineQueue: () => Promise<void>;
 }
 
@@ -167,7 +177,7 @@ export function EnhancedAuthProvider({ children }: EnhancedAuthProviderProps) {
       
       const response = await fetch('/api/rbac/user-profile', {
         headers: {
-          'Authorization': `Bearer ${await authUser.getIdToken()}`,
+          'Authorization': `Bearer ${await getAccessToken()}`,
         },
       });
 
@@ -337,7 +347,7 @@ export function EnhancedAuthProvider({ children }: EnhancedAuthProviderProps) {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${await user?.getIdToken()}`,
+          'Authorization': `Bearer ${await getAccessToken()}`,
         },
         body: JSON.stringify({
           resource,
@@ -422,7 +432,7 @@ export function EnhancedAuthProvider({ children }: EnhancedAuthProviderProps) {
     }
   }, []);
 
-  const queueOfflineAction = useCallback(async (action: unknown) => {
+  const queueOfflineAction = useCallback(async (action: Record<string, unknown>) => {
     try {
       const existingQueue = await AsyncStorage.getItem('@offline_action_queue');
       const queue = existingQueue ? JSON.parse(existingQueue) : [];
@@ -454,7 +464,7 @@ export function EnhancedAuthProvider({ children }: EnhancedAuthProviderProps) {
             method: action.method,
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${await user?.getIdToken()}`,
+              'Authorization': `Bearer ${await getAccessToken()}`,
             },
             body: JSON.stringify(action.data),
           });

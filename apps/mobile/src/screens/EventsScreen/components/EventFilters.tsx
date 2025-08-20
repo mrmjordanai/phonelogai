@@ -7,16 +7,15 @@ import {
   ScrollView,
   StyleSheet,
   Modal,
-  Switch,
   ViewStyle,
 } from 'react-native';
-import { EventFilters as EventFiltersType, QuickFilter } from '../types';
+import { EventFiltersState as EventFiltersType, QuickFilter } from '../types';
 
 interface EventFiltersProps {
   filters: EventFiltersType;
   quickFilters: QuickFilter[];
-  onFiltersChange: (filters: Partial<EventFiltersType>) => void;
-  onQuickFilterPress: (quickFilter: QuickFilter) => void;
+  onFiltersChange: (_filters: Partial<EventFiltersType>) => void;
+  onQuickFilterPress: (_quickFilter: QuickFilter) => void;
   onClearAll: () => void;
   style?: ViewStyle;
 }
@@ -25,7 +24,7 @@ interface FilterModalProps {
   visible: boolean;
   onClose: () => void;
   filters: EventFiltersType;
-  onFiltersChange: (filters: Partial<EventFiltersType>) => void;
+  onFiltersChange: (_filters: Partial<EventFiltersType>) => void;
 }
 
 // Filter option components
@@ -62,8 +61,8 @@ const DateRangePicker = ({
 }: {
   startDate?: Date;
   endDate?: Date;
-  onStartDateChange: (date?: Date) => void;
-  onEndDateChange: (date?: Date) => void;
+  onStartDateChange: (_date?: Date) => void;
+  onEndDateChange: (_date?: Date) => void;
 }) => {
   const presets = [
     { label: 'Today', start: new Date(new Date().setHours(0, 0, 0, 0)), end: new Date() },
@@ -119,8 +118,8 @@ const DurationRangePicker = ({
 }: {
   min?: number;
   max?: number;
-  onMinChange: (min?: number) => void;
-  onMaxChange: (max?: number) => void;
+  onMinChange: (_min?: number) => void;
+  onMaxChange: (_max?: number) => void;
 }) => {
   const presets = [
     { label: 'Quick (< 30s)', min: 0, max: 30 },

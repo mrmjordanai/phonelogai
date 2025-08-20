@@ -193,8 +193,9 @@ class ConflictResolverService {
     
     // Calculate completeness
     let filledOptionalFields = 0;
+    const eventRecord = event as unknown as Record<string, unknown>;
     optionalFields.forEach(field => {
-      if ((event as Record<string, unknown>)[field] != null) filledOptionalFields++;
+      if (eventRecord[field] != null) filledOptionalFields++;
     });
     
     const completeness = (requiredFields.length + filledOptionalFields) / (requiredFields.length + optionalFields.length);
@@ -586,7 +587,7 @@ class ConflictResolverService {
   private determineConflictType(localEvent: Event, remoteEvent: Event): ConflictType {
     // Check for exact duplicate
     if (this.areEventsIdentical(localEvent, remoteEvent)) {
-      return 'duplicate';
+      return 'exact';
     }
 
     // Check for timestamp drift
@@ -594,15 +595,15 @@ class ConflictResolverService {
       new Date(localEvent.ts).getTime() - new Date(remoteEvent.ts).getTime()
     );
     if (timeDiff > this.DEFAULT_TIMESTAMP_TOLERANCE) {
-      return 'timestamp_drift';
+      return 'time_variance';
     }
 
     // Check for field mismatches
     if (this.haveFieldMismatches(localEvent, remoteEvent)) {
-      return 'field_mismatch';
+      return 'fuzzy';
     }
 
-    return 'duplicate';
+    return 'exact';
   }
 
   /**
@@ -613,25 +614,23 @@ class ConflictResolverService {
     remoteEvent: Event,
     conflictType: ConflictType,
     options: ConflictResolutionOptions
-  ): 'keep_local' | 'keep_remote' | 'merge' | 'skip' {
+  ): ResolutionStrategy {
     if (options.autoResolve) {
       switch (conflictType) {
-        case 'duplicate':
-          return options.preferNewerData ? 
-            (new Date(localEvent.updated_at) > new Date(remoteEvent.updated_at) ? 'keep_local' : 'keep_remote') :
-            'skip';
+        case 'exact':
+          return 'automatic';
         
-        case 'timestamp_drift':
-        case 'field_mismatch':
-          return options.mergeDuplicates ? 'merge' : 'keep_remote';
+        case 'fuzzy':
+        case 'time_variance':
+          return options.mergeDuplicates ? 'merge' : 'manual';
         
         default:
-          return 'skip';
+          return 'manual';
       }
     }
 
     // Default to manual resolution needed
-    return 'skip';
+    return 'manual';
   }
 
   /**
@@ -665,19 +664,19 @@ class ConflictResolverService {
    */
   private generateConflictDetails(localEvent: Event, remoteEvent: Event, conflictType: ConflictType): string {
     switch (conflictType) {
-      case 'duplicate':
-        return `Duplicate event detected for ${localEvent.number} at ${localEvent.ts}`;
+      case 'exact':
+        return `Exact duplicate event detected for ${localEvent.number} at ${localEvent.ts}`;
       
-      case 'timestamp_drift': {
+      case 'time_variance': {
         const timeDiff = Math.abs(
           new Date(localEvent.ts).getTime() - new Date(remoteEvent.ts).getTime()
         );
-        return `Timestamp drift of ${timeDiff}ms detected`;
+        return `Timestamp variance of ${timeDiff}ms detected`;
       }
       
-      case 'field_mismatch': {
+      case 'fuzzy': {
         const mismatches = this.findFieldMismatches(localEvent, remoteEvent);
-        return `Field mismatches detected: ${mismatches.join(', ')}`;
+        return `Field differences detected: ${mismatches.join(', ')}`;
       }
       
       default:
@@ -692,8 +691,8 @@ class ConflictResolverService {
     const fieldsToCompare = ['line_id', 'ts', 'number', 'direction', 'type', 'duration', 'content'];
     
     return fieldsToCompare.every(field => {
-      const val1 = (event1 as Record<string, unknown>)[field];
-      const val2 = (event2 as Record<string, unknown>)[field];
+      const val1 = (event1 as unknown as Record<string, unknown>)[field];
+      const val2 = (event2 as unknown as Record<string, unknown>)[field];
       return val1 === val2;
     });
   }
@@ -713,8 +712,8 @@ class ConflictResolverService {
     const fieldsToCheck = ['duration', 'content', 'contact_id'];
 
     for (const field of fieldsToCheck) {
-      const val1 = (event1 as Record<string, unknown>)[field];
-      const val2 = (event2 as Record<string, unknown>)[field];
+      const val1 = (event1 as unknown as Record<string, unknown>)[field];
+      const val2 = (event2 as unknown as Record<string, unknown>)[field];
       
       if (val1 !== val2 && val1 != null && val2 != null) {
         mismatches.push(field);
@@ -800,7 +799,7 @@ class ConflictResolverService {
         if (result.resolution) {
           stats.resolutionTypes[result.resolution] = (stats.resolutionTypes[result.resolution] || 0) + 1;
           
-          if (result.resolution !== 'skip') {
+          if (result.resolution !== 'manual') {
             stats.resolvedAutomatically++;
           } else {
             stats.needsManualResolution++;
@@ -813,4 +812,5 @@ class ConflictResolverService {
   }
 }
 
+export { ConflictResolverService };
 export const ConflictResolver = ConflictResolverService.getInstance();

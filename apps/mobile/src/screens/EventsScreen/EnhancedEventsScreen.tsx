@@ -10,12 +10,14 @@ import {
   Alert,
   AppState,
   AppStateStatus,
+  TouchableOpacity,
 } from 'react-native';
 import {
   EventsList,
   EventFilters,
   EventDetailModal,
   SearchBar,
+  ExportModal,
 } from './components';
 import { 
   useEvents, 
@@ -30,20 +32,19 @@ interface EnhancedEventsScreenProps {
   // Navigation props would come from React Navigation
 }
 
-export function EnhancedEventsScreen({}: EnhancedEventsScreenProps) {
+export function EnhancedEventsScreen(_props: EnhancedEventsScreenProps) {
   // State
   const [selectedEvent, setSelectedEvent] = useState<UIEvent | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [appState, setAppState] = useState<AppStateStatus>('active');
 
   // Performance monitoring
   const {
-    metrics: performanceMetrics,
     startRenderTiming,
     endRenderTiming,
     recordFrameTime,
-    resetMetrics,
     getWarnings,
     isPerformanceGood,
   } = usePerformanceMonitoring({
@@ -54,11 +55,9 @@ export function EnhancedEventsScreen({}: EnhancedEventsScreenProps) {
 
   // Error handling
   const {
-    errors,
     latestError,
     isRetrying,
     addError,
-    removeError,
     clearErrors,
     retryOperation,
     handleAsyncOperation,
@@ -78,7 +77,6 @@ export function EnhancedEventsScreen({}: EnhancedEventsScreenProps) {
 
   // Accessibility
   const {
-    isScreenReaderEnabled,
     announce,
     announceEventLoaded,
     announceEventSelected,
@@ -86,8 +84,6 @@ export function EnhancedEventsScreen({}: EnhancedEventsScreenProps) {
     announceSearchResults,
     announceLoadingState,
     announceErrorState,
-    getEventAccessibilityLabel,
-    getEventAccessibilityHint,
   } = useAccessibility({
     announceChanges: true,
   });
@@ -159,7 +155,7 @@ export function EnhancedEventsScreen({}: EnhancedEventsScreenProps) {
 
   // Announce loading state changes
   useEffect(() => {
-    announceLoadingState(loading, error);
+    announceLoadingState(loading, error || undefined);
   }, [loading, error, announceLoadingState]);
 
   // Announce when events are loaded
@@ -336,6 +332,16 @@ export function EnhancedEventsScreen({}: EnhancedEventsScreenProps) {
     announceFilterChange('all', 'filters', false);
   }, [clearFilters, announceFilterChange]);
 
+  const handleExportPress = useCallback(() => {
+    if (events.length === 0) {
+      Alert.alert('No Events', 'There are no events to export. Try adjusting your filters or loading more data.');
+      announce('No events available for export', 'high');
+      return;
+    }
+    setShowExportModal(true);
+    announce(`Export dialog opened for ${events.length} events`, 'medium');
+  }, [events.length, announce]);
+
   const handleRefresh = useCallback(async () => {
     recordFrameTime();
     
@@ -394,18 +400,30 @@ export function EnhancedEventsScreen({}: EnhancedEventsScreenProps) {
       
       {/* Search Bar */}
       <View style={styles.searchContainer}>
-        <SearchBar
-          value={filters.search}
-          onChangeText={updateSearch}
-          onSubmit={handleSearchSubmit}
-          onFocus={handleSearchFocus}
-          onBlur={handleSearchBlur}
-          suggestions={searchSuggestions}
-          onSuggestionSelect={handleSuggestionSelect}
-          showSuggestions={showSearch}
-          placeholder="Search events..."
-          autoFocus={false}
-        />
+        <View style={styles.searchBarWrapper}>
+          <SearchBar
+            value={filters.search}
+            onChangeText={updateSearch}
+            onSubmit={handleSearchSubmit}
+            onFocus={handleSearchFocus}
+            onBlur={handleSearchBlur}
+            suggestions={searchSuggestions}
+            onSuggestionSelect={handleSuggestionSelect}
+            showSuggestions={showSearch}
+            placeholder="Search events..."
+            autoFocus={false}
+          />
+          <TouchableOpacity
+            style={styles.exportButton}
+            onPress={handleExportPress}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={`Export ${events.length} events`}
+            accessibilityHint="Opens export options for CSV and JSON formats"
+          >
+            <Text style={styles.exportButtonText}>📤</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Filters */}
@@ -453,6 +471,16 @@ export function EnhancedEventsScreen({}: EnhancedEventsScreenProps) {
         onAction={handleEventAction}
       />
 
+      {/* Export Modal */}
+      <ExportModal
+        visible={showExportModal}
+        events={events}
+        onClose={() => {
+          setShowExportModal(false);
+          announce('Export dialog closed', 'low');
+        }}
+      />
+
       {/* Performance Debug Info (Development only) */}
       {__DEV__ && !isPerformanceGood && (
         <View style={styles.debugContainer}>
@@ -479,6 +507,22 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
     zIndex: 1000,
+  },
+  searchBarWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  exportButton: {
+    marginLeft: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+  },
+  exportButtonText: {
+    fontSize: 16,
   },
   listContainer: {
     flex: 1,

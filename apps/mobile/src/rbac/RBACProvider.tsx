@@ -21,6 +21,17 @@ import {
   canManageRole,
 } from '@phonelogai/shared/rbac';
 import { useAuth } from '../components/AuthProvider';
+import { supabase } from '@phonelogai/database';
+
+// Helper function to get access token from current session
+const getAccessToken = async (): Promise<string | null> => {
+  const { data: { session }, error } = await supabase.auth.getSession();
+  if (error || !session) {
+    console.error('Failed to get session:', error);
+    return null;
+  }
+  return session.access_token;
+};
 
 const RBAC_STORAGE_KEYS = {
   USER_ROLE: '@rbac_user_role',
@@ -143,7 +154,7 @@ export function RBACProvider({ children }: RBACProviderProps): JSX.Element {
       // Try to fetch from server
       const response = await fetch('/api/rbac/user-permissions', {
         headers: {
-          'Authorization': `Bearer ${await authUser.getIdToken()}`,
+          'Authorization': `Bearer ${await getAccessToken()}`,
         },
       });
 
@@ -233,7 +244,7 @@ export function RBACProvider({ children }: RBACProviderProps): JSX.Element {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${await authUser?.getIdToken()}`,
+          'Authorization': `Bearer ${await getAccessToken()}`,
         },
         body: JSON.stringify({
           resource,

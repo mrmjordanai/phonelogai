@@ -1,5 +1,5 @@
 export { EventsScreen as default } from './EventsScreen';
 export * from './EventsScreen';
-export * from './types';
+export type * from './types';
 export * from './hooks';
-export * from './components';
+export * from './components/index';

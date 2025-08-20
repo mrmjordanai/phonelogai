@@ -549,48 +549,79 @@ export class AuditLogger {
     last24Hours: number;
     last7Days: number;
   }> {
-    let baseQuery = this.supabase.from('enhanced_audit_log');
-    
+    const query = this.supabase.from('enhanced_audit_log').select('*');
     if (organizationId) {
-      baseQuery = baseQuery.eq('organization_id', organizationId);
+      query.eq('organization_id', organizationId);
     }
 
     // Get total count
-    const { count: totalEntries } = await baseQuery.select('*', { count: 'exact', head: true });
+    let countQuery = this.supabase
+      .from('enhanced_audit_log')
+      .select('*', { count: 'exact', head: true });
+    
+    if (organizationId) {
+      countQuery = countQuery.eq('organization_id', organizationId);
+    }
+    
+    const { count: totalEntries } = await countQuery;
 
+    // Use separate queries for aggregation since Supabase doesn't support groupBy
     // Get statistics by category
-    const { data: categoryStats } = await baseQuery
-      .select('category')
-      .groupBy('category');
+    const categoryQuery = this.supabase.from('enhanced_audit_log').select('category');
+    if (organizationId) {
+      categoryQuery.eq('organization_id', organizationId);
+    }
+    const { data: categoryStats } = await categoryQuery;
 
     // Get statistics by severity  
-    const { data: severityStats } = await baseQuery
-      .select('severity')
-      .groupBy('severity');
+    const severityQuery = this.supabase.from('enhanced_audit_log').select('severity');
+    if (organizationId) {
+      severityQuery.eq('organization_id', organizationId);
+    }
+    const { data: severityStats } = await severityQuery;
 
     // Get statistics by outcome
-    const { data: outcomeStats } = await baseQuery
-      .select('outcome')
-      .groupBy('outcome');
+    const outcomeQuery = this.supabase.from('enhanced_audit_log').select('outcome');
+    if (organizationId) {
+      outcomeQuery.eq('organization_id', organizationId);
+    }
+    const { data: outcomeStats } = await outcomeQuery;
 
     // Get review required count
-    const { count: reviewRequired } = await baseQuery
+    let reviewQuery = this.supabase.from('enhanced_audit_log')
       .select('*', { count: 'exact', head: true })
-      .eq('requires_review', true)
-      .is('reviewed_at', null);
+      .eq('requires_review', true);
+    
+    if (organizationId) {
+      reviewQuery = reviewQuery.eq('organization_id', organizationId);
+    }
+    
+    const { count: reviewRequired } = await reviewQuery;
 
     // Get recent activity counts
     const now = new Date();
     const last24Hours = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     const last7Days = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-    const { count: last24HoursCount } = await baseQuery
+    let last24Query = this.supabase.from('enhanced_audit_log')
       .select('*', { count: 'exact', head: true })
       .gte('occurred_at', last24Hours.toISOString());
+    
+    if (organizationId) {
+      last24Query = last24Query.eq('organization_id', organizationId);
+    }
+    
+    const { count: last24HoursCount } = await last24Query;
 
-    const { count: last7DaysCount } = await baseQuery
+    let last7Query = this.supabase.from('enhanced_audit_log')
       .select('*', { count: 'exact', head: true })
       .gte('occurred_at', last7Days.toISOString());
+    
+    if (organizationId) {
+      last7Query = last7Query.eq('organization_id', organizationId);
+    }
+    
+    const { count: last7DaysCount } = await last7Query;
 
     // Process category counts
     const entriesByCategory: Record<AuditEventCategory, number> = {

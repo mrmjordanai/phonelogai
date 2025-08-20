@@ -6,14 +6,7 @@ import {
   StyleSheet,
   ViewStyle,
 } from 'react-native';
-
-export type EmptyStateType = 
-  | 'no_events'
-  | 'no_search_results'
-  | 'no_filter_results'
-  | 'loading_error'
-  | 'network_error'
-  | 'permission_required';
+import type { EmptyStateType } from '../types';
 
 interface EmptyStateProps {
   type: EmptyStateType;

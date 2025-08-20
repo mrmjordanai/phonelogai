@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -7,12 +7,15 @@ import {
   StatusBar,
   Platform,
   Alert,
+  TouchableOpacity,
+  Text,
 } from 'react-native';
 import {
   EventsList,
   EventFilters,
   EventDetailModal,
   SearchBar,
+  ExportModal,
 } from './components';
 import { useEvents, useEventFilters } from './hooks';
 import { UIEvent, EventAction, SearchSuggestion } from './types';
@@ -21,11 +24,12 @@ interface EventsScreenProps {
   // Navigation props would come from React Navigation
 }
 
-export function EventsScreen({}: EventsScreenProps) {
+export function EventsScreen(_props: EventsScreenProps) {
   // State
   const [selectedEvent, setSelectedEvent] = useState<UIEvent | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   // Hooks
   const {
@@ -156,7 +160,7 @@ export function EventsScreen({}: EventsScreenProps) {
               setShowDetailModal(false);
               
               Alert.alert('Success', 'Event deleted successfully');
-            } catch (error) {
+            } catch {
               Alert.alert('Error', 'Failed to delete event');
             }
           }
@@ -195,6 +199,14 @@ export function EventsScreen({}: EventsScreenProps) {
     setTimeout(() => setShowSearch(false), 150);
   }, []);
 
+  const handleExportPress = useCallback(() => {
+    if (events.length === 0) {
+      Alert.alert('No Events', 'There are no events to export. Try adjusting your filters or loading more data.');
+      return;
+    }
+    setShowExportModal(true);
+  }, [events.length]);
+
   // Status bar configuration
   const statusBarStyle = Platform.OS === 'ios' ? 'dark-content' : 'light-content';
   const statusBarBackgroundColor = Platform.OS === 'android' ? '#FFFFFF' : undefined;
@@ -209,18 +221,29 @@ export function EventsScreen({}: EventsScreenProps) {
       
       {/* Search Bar */}
       <View style={styles.searchContainer}>
-        <SearchBar
-          value={filters.search}
-          onChangeText={updateSearch}
-          onSubmit={handleSearchSubmit}
-          onFocus={handleSearchFocus}
-          onBlur={handleSearchBlur}
-          suggestions={searchSuggestions}
-          onSuggestionSelect={handleSuggestionSelect}
-          showSuggestions={showSearch}
-          placeholder="Search events..."
-          autoFocus={false}
-        />
+        <View style={styles.searchBarWrapper}>
+          <SearchBar
+            value={filters.search}
+            onChangeText={updateSearch}
+            onSubmit={handleSearchSubmit}
+            onFocus={handleSearchFocus}
+            onBlur={handleSearchBlur}
+            suggestions={searchSuggestions}
+            onSuggestionSelect={handleSuggestionSelect}
+            showSuggestions={showSearch}
+            placeholder="Search events..."
+            autoFocus={false}
+          />
+          <TouchableOpacity
+            style={styles.exportButton}
+            onPress={handleExportPress}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Export events"
+          >
+            <Text style={styles.exportButtonText}>📤</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Filters */}
@@ -263,6 +286,13 @@ export function EventsScreen({}: EventsScreenProps) {
         }}
         onAction={handleEventAction}
       />
+
+      {/* Export Modal */}
+      <ExportModal
+        visible={showExportModal}
+        events={events}
+        onClose={() => setShowExportModal(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -279,6 +309,22 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
     zIndex: 1000, // Ensure search suggestions appear above other content
+  },
+  searchBarWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  exportButton: {
+    marginLeft: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+  },
+  exportButtonText: {
+    fontSize: 16,
   },
   listContainer: {
     flex: 1,

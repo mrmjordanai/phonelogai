@@ -10,7 +10,7 @@ import {
   RefreshControl
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ConflictEvent, ConflictType } from '@phonelogai/types';
+import { ConflictEvent, ConflictType } from '../types';
 import { ConflictResolver } from '../services/ConflictResolver';
 import { useAuth } from '../components/AuthProvider';
 

@@ -7,9 +7,9 @@ import {
   UpdateContactOperation, 
   SyncHealthOperation 
 } from './QueueItem';
-import { QueueManager, ProcessingResult } from './QueueManager';
-import { NetworkDetector, NetworkState } from './NetworkDetector';
-import { ConflictResolver } from './ConflictResolver';
+import { QueueManagerService, ProcessingResult } from './QueueManager';
+import { NetworkDetectorService, NetworkState } from './NetworkDetector';
+import { ConflictResolverService } from './ConflictResolver';
 import { supabase } from '@phonelogai/database';
 
 export interface SyncProgress {
@@ -52,9 +52,9 @@ export type SyncEventCallback = (_event: 'started' | 'paused' | 'resumed' | 'com
 class SyncEngineService {
   private static instance: SyncEngineService;
   private config: SyncConfig;
-  private queueManager: QueueManager;
-  private networkDetector: NetworkDetector;
-  private conflictResolver: ConflictResolver;
+  private queueManager: QueueManagerService;
+  private networkDetector: NetworkDetectorService;
+  private conflictResolver: ConflictResolverService;
   private isSyncing = false;
   private syncPaused = false;
   private currentProgress: SyncProgress = {
@@ -87,9 +87,9 @@ class SyncEngineService {
       ...config
     };
 
-    this.queueManager = QueueManager.getInstance();
-    this.networkDetector = NetworkDetector.getInstance();
-    this.conflictResolver = ConflictResolver.getInstance();
+    this.queueManager = QueueManagerService.getInstance();
+    this.networkDetector = NetworkDetectorService.getInstance();
+    this.conflictResolver = ConflictResolverService.getInstance();
   }
 
   public static getInstance(config?: Partial<SyncConfig>): SyncEngineService {
@@ -451,7 +451,7 @@ class SyncEngineService {
           result = await this.processSyncHealth(item);
           break;
         default:
-          throw new Error(`Unknown operation type: ${item.operation.type}`);
+          throw new Error(`Unknown operation type: ${(item.operation as any).type}`);
       }
 
       result.processingTime = Date.now() - startTime;
@@ -470,6 +470,7 @@ class SyncEngineService {
   }
 
   private async processCreateEvent(item: QueueItem): Promise<ProcessingResult> {
+    const startTime = Date.now();
     const operation = item.operation as CreateEventOperation;
     const event = operation.payload;
 
@@ -487,7 +488,8 @@ class SyncEngineService {
             success: false,
             itemId: item.id,
             error: 'Event already exists (duplicate)',
-            retryRecommended: false
+            retryRecommended: false,
+            processingTime: Date.now() - startTime
           };
         }
         throw error;
@@ -495,7 +497,8 @@ class SyncEngineService {
 
       return {
         success: true,
-        itemId: item.id
+        itemId: item.id,
+        processingTime: Date.now() - startTime
       };
 
     } catch (error) {
@@ -504,6 +507,7 @@ class SyncEngineService {
   }
 
   private async processUpdateEvent(item: QueueItem): Promise<ProcessingResult> {
+    const startTime = Date.now();
     const operation = item.operation as UpdateEventOperation;
     const event = operation.payload;
     const originalEventId = operation.originalEventId;
@@ -525,13 +529,15 @@ class SyncEngineService {
           success: false,
           itemId: item.id,
           error: 'Event not found for update',
-          retryRecommended: false
+          retryRecommended: false,
+          processingTime: Date.now() - startTime
         };
       }
 
       return {
         success: true,
-        itemId: item.id
+        itemId: item.id,
+        processingTime: Date.now() - startTime
       };
 
     } catch (error) {
@@ -540,6 +546,7 @@ class SyncEngineService {
   }
 
   private async processDeleteEvent(item: QueueItem): Promise<ProcessingResult> {
+    const startTime = Date.now();
     const operation = item.operation as DeleteEventOperation;
     const eventId = operation.payload.eventId;
 
@@ -555,7 +562,8 @@ class SyncEngineService {
 
       return {
         success: true,
-        itemId: item.id
+        itemId: item.id,
+        processingTime: Date.now() - startTime
       };
 
     } catch (error) {
@@ -564,6 +572,7 @@ class SyncEngineService {
   }
 
   private async processCreateContact(item: QueueItem): Promise<ProcessingResult> {
+    const startTime = Date.now();
     const operation = item.operation as CreateContactOperation;
     const contact = operation.payload;
 
@@ -580,7 +589,8 @@ class SyncEngineService {
             success: false,
             itemId: item.id,
             error: 'Contact already exists (duplicate)',
-            retryRecommended: false
+            retryRecommended: false,
+            processingTime: Date.now() - startTime
           };
         }
         throw error;
@@ -588,7 +598,8 @@ class SyncEngineService {
 
       return {
         success: true,
-        itemId: item.id
+        itemId: item.id,
+        processingTime: Date.now() - startTime
       };
 
     } catch (error) {
@@ -597,6 +608,7 @@ class SyncEngineService {
   }
 
   private async processUpdateContact(item: QueueItem): Promise<ProcessingResult> {
+    const startTime = Date.now();
     const operation = item.operation as UpdateContactOperation;
     const contact = operation.payload;
     const originalContactId = operation.originalContactId;
@@ -618,13 +630,15 @@ class SyncEngineService {
           success: false,
           itemId: item.id,
           error: 'Contact not found for update',
-          retryRecommended: false
+          retryRecommended: false,
+          processingTime: Date.now() - startTime
         };
       }
 
       return {
         success: true,
-        itemId: item.id
+        itemId: item.id,
+        processingTime: Date.now() - startTime
       };
 
     } catch (error) {
@@ -633,6 +647,7 @@ class SyncEngineService {
   }
 
   private async processSyncHealth(item: QueueItem): Promise<ProcessingResult> {
+    const startTime = Date.now();
     const operation = item.operation as SyncHealthOperation;
     const syncHealth = operation.payload;
 
@@ -649,7 +664,8 @@ class SyncEngineService {
 
       return {
         success: true,
-        itemId: item.id
+        itemId: item.id,
+        processingTime: Date.now() - startTime
       };
 
     } catch (error) {

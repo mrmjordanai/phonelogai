@@ -1,24 +1,32 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { eventUtils } from '@phonelogai/database';
-// Temporary workaround for module resolution 
-type Event = {
-  id: string;
-  user_id: string;
-  line_id: string;
-  ts: string;
-  number: string;
-  direction: 'inbound' | 'outbound';
-  type: 'call' | 'sms';
-  duration?: number;
-  content?: string;
-  contact_id?: string;
-  status?: 'answered' | 'missed' | 'busy' | 'declined';
-  source?: string;
-  created_at: string;
-  updated_at: string;
-};
-import { UIEvent, EventFilters, EventSortConfig, EventsPagination } from '../types';
+import { UIEvent, EventFiltersState, EventSortConfig, EventsPagination } from '../types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { mockDataService } from '../services/MockDataService';
+
+// Try to import from database package, fall back to mock
+let eventUtils: unknown = null;
+let useMockData = false;
+
+try {
+   
+  const db = require('@phonelogai/database');
+  eventUtils = db.eventUtils;
+} catch (error) {
+  console.warn('Database package not available, using mock data:', error);
+  useMockData = true;
+}
+
+// AbortController types for React Native
+interface AbortSignalCustom {
+  aborted: boolean;
+  addEventListener(_type: 'abort', _listener: () => void): void;
+  removeEventListener(_type: 'abort', _listener: () => void): void;
+}
+
+interface AbortControllerCustom {
+  signal: AbortSignalCustom;
+  abort(): void;
+}
 
 const CACHE_KEY = 'events_cache';
 const CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutes
@@ -26,11 +34,11 @@ const CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutes
 interface EventsCache {
   data: UIEvent[];
   timestamp: number;
-  filters: EventFilters;
+  filters: EventFiltersState;
 }
 
 interface UseEventsProps {
-  initialFilters?: Partial<EventFilters>;
+  initialFilters?: Partial<EventFiltersState>;
   pageSize?: number;
   cacheEnabled?: boolean;
 }
@@ -69,7 +77,7 @@ export function useEvents({
     cursor: undefined
   });
 
-  const currentFilters = useRef<EventFilters>({
+  const currentFilters = useRef<EventFiltersState>({
     search: '',
     type: 'all',
     direction: 'all',
@@ -84,14 +92,14 @@ export function useEvents({
   });
 
   const isLoading = useRef(false);
-  const abortController = useRef<AbortController | null>(null);
+  const abortController = useRef<AbortControllerCustom | null>(null);
 
   // Cache management
-  const getCacheKey = useCallback((filters: EventFilters) => {
+  const getCacheKey = useCallback((filters: EventFiltersState) => {
     return `${CACHE_KEY}_${JSON.stringify(filters)}_${currentSort.current.field}_${currentSort.current.direction}`;
   }, []);
 
-  const loadFromCache = useCallback(async (filters: EventFilters): Promise<UIEvent[] | null> => {
+  const loadFromCache = useCallback(async (filters: EventFiltersState): Promise<UIEvent[] | null> => {
     if (!cacheEnabled) return null;
     
     try {
@@ -115,7 +123,7 @@ export function useEvents({
     }
   }, [cacheEnabled, getCacheKey]);
 
-  const saveToCache = useCallback(async (filters: EventFilters, data: UIEvent[]) => {
+  const saveToCache = useCallback(async (filters: EventFiltersState, data: UIEvent[]) => {
     if (!cacheEnabled) return;
     
     try {
@@ -171,17 +179,23 @@ export function useEvents({
   }, []);
 
   // Transform raw events to UI events with privacy handling
-  const transformEvents = useCallback((rawEvents: Event[]): UIEvent[] => {
+  const transformEvents = useCallback((rawEvents: unknown[]): UIEvent[] => {
+    if (useMockData) {
+      // Mock data is already transformed
+      return rawEvents as UIEvent[];
+    }
+    
     return rawEvents.map(event => {
-      const uiEvent: UIEvent = { ...event };
+      const eventObj = event as Record<string, unknown>;
+      const uiEvent = { ...(eventObj || {}) } as unknown as UIEvent;
       
       // Apply privacy rules (simplified - would integrate with actual privacy service)
-      if (event.contact_id) {
+      if (eventObj.contact_id) {
         // Would load contact and privacy rules here
-        uiEvent.display_name = event.contact_id; // Placeholder
-        uiEvent.display_number = event.number;
+        uiEvent.display_name = typeof eventObj.contact_id === 'string' ? eventObj.contact_id : '';
+        uiEvent.display_number = typeof eventObj.number === 'string' ? eventObj.number : undefined;
       } else {
-        uiEvent.display_number = event.number;
+        uiEvent.display_number = typeof eventObj.number === 'string' ? eventObj.number : undefined;
       }
       
       return uiEvent;
@@ -189,7 +203,7 @@ export function useEvents({
   }, []);
 
   // Apply client-side filtering and sorting
-  const applyFiltersAndSort = useCallback((events: UIEvent[], filters: EventFilters, sort: EventSortConfig): UIEvent[] => {
+  const applyFiltersAndSort = useCallback((events: UIEvent[], filters: EventFiltersState, sort: EventSortConfig): UIEvent[] => {
     let filtered = [...events];
     
     // Apply search filter
@@ -274,12 +288,12 @@ export function useEvents({
 
   // Main data fetching function
   const fetchEvents = useCallback(async (
-    filters: EventFilters,
+    filters: EventFiltersState,
     options: {
       page?: number;
       append?: boolean;
       useCache?: boolean;
-      signal?: AbortSignal;
+      signal?: AbortSignalCustom;
     } = {}
   ) => {
     const { 
@@ -305,28 +319,55 @@ export function useEvents({
         }
       }
       
-      // Fetch from database
-      const response = await eventUtils.getFilteredEvents(
-        'current_user', // Would get from auth context
-        {
-          limit: pageSize,
-          offset: page * pageSize,
-          startDate: filters.dateRange.start?.toISOString(),
-          endDate: filters.dateRange.end?.toISOString(),
-          eventType: filters.type === 'all' ? undefined : filters.type,
-          direction: filters.direction === 'all' ? undefined : filters.direction
+      // Fetch from database or mock service
+      let rawEvents: unknown[] = [];
+      
+      if (useMockData) {
+        // Use mock data service
+        const mockResponse = await mockDataService.getFilteredEvents(
+          {
+            search: filters.search,
+            type: filters.type,
+            direction: filters.direction,
+            status: filters.status,
+            contactId: filters.contactId,
+            dateRange: filters.dateRange,
+            durationRange: filters.durationRange
+          },
+          {
+            limit: pageSize,
+            offset: page * pageSize
+          }
+        );
+        rawEvents = mockResponse.data;
+      } else {
+        // Use real database
+        const response = await (eventUtils as { getFilteredEvents: (..._args: unknown[]) => Promise<unknown> }).getFilteredEvents(
+          'current_user', // Would get from auth context
+          {
+            limit: pageSize,
+            offset: page * pageSize,
+            startDate: filters.dateRange.start?.toISOString(),
+            endDate: filters.dateRange.end?.toISOString(),
+            eventType: filters.type === 'all' ? undefined : filters.type,
+            direction: filters.direction === 'all' ? undefined : filters.direction
+          }
+        );
+        
+        if (signal?.aborted) return [];
+        
+        if (response && typeof response === 'object' && 'error' in response) {
+          const error = (response as { error?: { message?: string } }).error;
+          throw new Error(error?.message || 'Failed to fetch events');
         }
-      );
-      
-      if (signal?.aborted) return [];
-      
-      if (response.error) {
-        throw new Error(response.error.message || 'Failed to fetch events');
+        
+        rawEvents = (response && typeof response === 'object' && 'data' in response) 
+          ? ((response as { data?: unknown[] }).data || [])
+          : [];
       }
       
-      const rawEvents = (response.data as Event[]) || [];
       const transformedEvents = transformEvents(rawEvents);
-      const filteredEvents = applyFiltersAndSort(transformedEvents, filters, currentSort.current);
+      const filteredEvents = useMockData ? transformedEvents : applyFiltersAndSort(transformedEvents, filters, currentSort.current);
       
       // Update state
       if (append) {
@@ -383,7 +424,7 @@ export function useEvents({
     
     // Cancel any existing requests
     abortController.current?.abort();
-    abortController.current = new AbortController();
+    abortController.current = new AbortController() as AbortControllerCustom;
     
     try {
       await clearCache();

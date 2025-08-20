@@ -135,7 +135,7 @@ class SyncHealthMonitorImpl extends EventEmitter {
       console.log('SyncHealthMonitor initialized successfully');
     } catch (error) {
       console.error('Failed to initialize SyncHealthMonitor:', error);
-      throw new Error(`SyncHealthMonitor initialization failed: ${error.message}`);
+      throw new Error(`SyncHealthMonitor initialization failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -202,7 +202,7 @@ class SyncHealthMonitorImpl extends EventEmitter {
       this.currentStatus.lastSync = new Date();
       this.currentStatus.queueDepth = queueStats.totalItems;
       this.currentStatus.driftPercentage = this.calculateDriftPercentage();
-      this.currentStatus.networkStatus = this.mapNetworkStatus(networkInfo);
+      this.currentStatus.networkStatus = this.mapNetworkStatusFromSyncService(networkInfo);
       this.currentStatus.syncLatency = syncResult.duration;
       this.currentStatus.successRate = this.calculateSuccessRate();
       
@@ -492,28 +492,14 @@ class SyncHealthMonitorImpl extends EventEmitter {
       const severity = metrics.pending_resolution > 200 ? 'critical' : 
                       metrics.pending_resolution > 100 ? 'high' : 'medium';
       
-      this.reportIssue({
-        id: 'conflict_backlog',
-        type: 'conflict_backlog',
-        severity,
-        message: `${metrics.pending_resolution} conflicts pending resolution`,
-        detectedAt: new Date(),
-        metadata: { pending_count: metrics.pending_resolution }
-      });
+      this.createOrUpdateIssue('conflict_backlog', severity, `${metrics.pending_resolution} conflicts pending resolution`);
     } else {
       this.resolveIssue('conflict_backlog');
     }
     
     // Check for low auto-resolution rate
     if (metrics.total_conflicts > 10 && metrics.auto_resolution_rate < 70) {
-      this.reportIssue({
-        id: 'low_auto_resolution',
-        type: 'data_quality',
-        severity: 'medium',
-        message: `Low auto-resolution rate: ${metrics.auto_resolution_rate}%`,
-        detectedAt: new Date(),
-        metadata: { auto_resolution_rate: metrics.auto_resolution_rate }
-      });
+      this.createOrUpdateIssue('low_auto_resolution', 'medium', `Low auto-resolution rate: ${metrics.auto_resolution_rate}%`);
     } else {
       this.resolveIssue('low_auto_resolution');
     }
@@ -521,14 +507,7 @@ class SyncHealthMonitorImpl extends EventEmitter {
     // Check for data quality degradation
     if (metrics.data_quality_improvement < 85) {
       const severity = metrics.data_quality_improvement < 70 ? 'high' : 'medium';
-      this.reportIssue({
-        id: 'data_quality_degradation',
-        type: 'data_quality',
-        severity,
-        message: `Data quality below target: ${metrics.data_quality_improvement}%`,
-        detectedAt: new Date(),
-        metadata: { quality_score: metrics.data_quality_improvement }
-      });
+      this.createOrUpdateIssue('data_quality_degradation', severity, `Data quality below target: ${metrics.data_quality_improvement}%`);
     } else {
       this.resolveIssue('data_quality_degradation');
     }
@@ -542,7 +521,7 @@ class SyncHealthMonitorImpl extends EventEmitter {
       const networkInfo = SyncService.getNetworkInfo();
       
       this.currentStatus.queueDepth = queueStats.totalItems;
-      this.currentStatus.networkStatus = this.mapNetworkStatus(networkInfo);
+      this.currentStatus.networkStatus = this.mapNetworkStatusFromSyncService(networkInfo);
       this.currentStatus.driftPercentage = this.calculateDriftPercentage();
       this.currentStatus.successRate = this.calculateSuccessRate();
       this.currentStatus.healthScore = this.calculateHealthScore();
@@ -613,13 +592,7 @@ class SyncHealthMonitorImpl extends EventEmitter {
   private setupNetworkMonitoring(): void {
     this.netInfoSubscription = NetInfo.addEventListener((state: NetInfoState) => {
       const previousStatus = this.currentStatus.networkStatus;
-      this.currentStatus.networkStatus = this.mapNetworkStatus({
-        isConnected: state.isConnected || false,
-        connectionType: state.type,
-        isWiFi: state.type === 'wifi',
-        isCellular: state.type === 'cellular',
-        isMetered: state.isMetered || false,
-      });
+      this.currentStatus.networkStatus = this.mapNetworkStatus(state);
       
       if (previousStatus !== this.currentStatus.networkStatus) {
         this.emit('network_status_changed', this.currentStatus.networkStatus);
@@ -676,7 +649,13 @@ class SyncHealthMonitorImpl extends EventEmitter {
 
   private mapNetworkStatus(networkInfo: NetInfoState): 'connected' | 'disconnected' | 'limited' {
     if (!networkInfo.isConnected) return 'disconnected';
-    if (networkInfo.isMetered && !networkInfo.isWiFi) return 'limited';
+    if (networkInfo.type === 'cellular') return 'limited'; // Consider cellular as limited/metered
+    return 'connected';
+  }
+
+  private mapNetworkStatusFromSyncService(networkInfo: import('./SyncService').NetworkInfo): 'connected' | 'disconnected' | 'limited' {
+    if (!networkInfo.isConnected) return 'disconnected';
+    if (networkInfo.isCellular || networkInfo.isMetered) return 'limited';
     return 'connected';
   }
 

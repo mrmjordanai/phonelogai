@@ -158,7 +158,7 @@ class HealthCheckerEngine {
       
     } catch (error) {
       console.error('Health assessment failed:', error);
-      throw new Error(`Health assessment failed: ${error.message}`);
+      throw new Error(`Health assessment failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -187,7 +187,7 @@ class HealthCheckerEngine {
       return {
         passed: false,
         value: 0,
-        message: `Health check failed: ${error.message}`,
+        message: `Health check failed: ${error instanceof Error ? error.message : String(error)}`,
         suggestions: ['Contact support if this error persists']
       };
     }
@@ -267,7 +267,7 @@ class HealthCheckerEngine {
     try {
       const { data: gaps } = await dbUtils.sync.detectGaps(userId, thresholdHours);
       
-      if (!gaps || gaps.length === 0) {
+      if (!gaps || !Array.isArray(gaps) || gaps.length === 0) {
         return [];
       }
 
@@ -513,7 +513,8 @@ class HealthCheckerEngine {
       batteryOptimized: true,
       issues: [],
       syncLatency: 0,
-      successRate: 100
+      successRate: 100,
+      dataQualityScore: 100
     };
 
     // Get performance metrics
@@ -556,7 +557,7 @@ class HealthCheckerEngine {
         results.set(ruleId, {
           passed: false,
           value: 0,
-          message: `Check failed: ${error.message}`,
+          message: `Check failed: ${error instanceof Error ? error.message : String(error)}`,
           suggestions: ['Contact support if this error persists']
         });
       }

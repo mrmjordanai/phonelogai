@@ -35,7 +35,7 @@ export interface StorageConfig {
 class OfflineStorageService {
   private static instance: OfflineStorageService;
   private readonly config: StorageConfig;
-  private readonly cryptoService: CryptoService;
+  private readonly cryptoService: typeof CryptoService;
   private memoryCache: Map<string, QueueItem> = new Map();
   private cacheLoaded = false;
   private compressionStats = { compressed: 0, total: 0 };
@@ -51,7 +51,7 @@ class OfflineStorageService {
       batchSize: 100,
       ...config
     };
-    this.cryptoService = CryptoService.getInstance();
+    this.cryptoService = CryptoService;
   }
 
   public static getInstance(config?: Partial<StorageConfig>): OfflineStorageService {
@@ -422,7 +422,8 @@ class OfflineStorageService {
     
     // Apply encryption if enabled and item contains sensitive data
     if (this.config.enableEncryption && item.metadata.encrypted) {
-      data = await this.cryptoService.encrypt(data);
+      const encryptedData = await this.cryptoService.encrypt(data);
+      data = JSON.stringify(encryptedData);
     }
     
     return data;
@@ -433,7 +434,8 @@ class OfflineStorageService {
     
     // Try to decrypt if it looks encrypted
     if (this.config.enableEncryption && this.isEncrypted(data)) {
-      processedData = await this.cryptoService.decrypt(data);
+      const encryptedData = JSON.parse(data);
+      processedData = await this.cryptoService.decrypt(encryptedData);
     }
     
     // Try to decompress if it looks compressed
@@ -531,4 +533,5 @@ class OfflineStorageService {
   }
 }
 
+export { OfflineStorageService };
 export const OfflineStorage = OfflineStorageService.getInstance();

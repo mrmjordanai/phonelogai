@@ -16,13 +16,13 @@ import { SearchSuggestion } from '../types';
 
 interface SearchBarProps {
   value: string;
-  onChangeText: (text: string) => void;
-  onSubmit?: (text: string) => void;
+  onChangeText: (_text: string) => void;
+  onSubmit?: (_text: string) => void;
   onFocus?: () => void;
   onBlur?: () => void;
   placeholder?: string;
   suggestions?: SearchSuggestion[];
-  onSuggestionSelect?: (suggestion: SearchSuggestion) => void;
+  onSuggestionSelect?: (_suggestion: SearchSuggestion) => void;
   showSuggestions?: boolean;
   style?: ViewStyle;
   autoFocus?: boolean;
@@ -31,7 +31,7 @@ interface SearchBarProps {
 
 interface SearchSuggestionItemProps {
   suggestion: SearchSuggestion;
-  onPress: (suggestion: SearchSuggestion) => void;
+  onPress: (_suggestion: SearchSuggestion) => void;
   query: string;
 }
 

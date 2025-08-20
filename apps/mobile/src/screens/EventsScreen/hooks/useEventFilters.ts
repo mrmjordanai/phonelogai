@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { EventFilters, QuickFilter, SearchSuggestion } from '../types';
+import { EventFiltersState, QuickFilter, SearchSuggestion } from '../types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useDebouncedCallback } from './useDebounce';
 
@@ -8,38 +8,38 @@ const SEARCH_HISTORY_KEY = 'events_search_history';
 const MAX_SEARCH_HISTORY = 10;
 
 interface UseEventFiltersProps {
-  initialFilters?: Partial<EventFilters>;
+  initialFilters?: Partial<EventFiltersState>;
   persistFilters?: boolean;
-  onFiltersChange?: (filters: EventFilters) => void;
+  onFiltersChange?: (_filters: EventFiltersState) => void;
   debounceMs?: number;
 }
 
 interface UseEventFiltersReturn {
-  filters: EventFilters;
+  filters: EventFiltersState;
   isFiltersActive: boolean;
   searchSuggestions: SearchSuggestion[];
   quickFilters: QuickFilter[];
   
   // Filter actions
-  updateFilters: (updates: Partial<EventFilters>) => void;
-  updateSearch: (search: string) => void;
+  updateFilters: (_updates: Partial<EventFiltersState>) => void;
+  updateSearch: (_search: string) => void;
   clearFilters: () => void;
   resetToDefaults: () => void;
   
   // Quick filters
-  applyQuickFilter: (quickFilter: QuickFilter) => void;
+  applyQuickFilter: (_quickFilter: QuickFilter) => void;
   
   // Search management
-  addToSearchHistory: (search: string) => Promise<void>;
+  addToSearchHistory: (_search: string) => Promise<void>;
   clearSearchHistory: () => Promise<void>;
-  getSearchSuggestions: (query: string) => SearchSuggestion[];
+  getSearchSuggestions: (_query: string) => SearchSuggestion[];
   
   // Persistence
   saveFilters: () => Promise<void>;
   loadFilters: () => Promise<void>;
 }
 
-const DEFAULT_FILTERS: EventFilters = {
+const DEFAULT_FILTERS: EventFiltersState = {
   search: '',
   type: 'all',
   direction: 'all',
@@ -117,7 +117,7 @@ export function useEventFilters({
   onFiltersChange,
   debounceMs = 300
 }: UseEventFiltersProps = {}): UseEventFiltersReturn {
-  const [filters, setFilters] = useState<EventFilters>({
+  const [filters, setFilters] = useState<EventFiltersState>({
     ...DEFAULT_FILTERS,
     ...initialFilters
   });
@@ -127,11 +127,12 @@ export function useEventFilters({
   const quickFilters = QUICK_FILTERS;
   
   const isInitialized = useRef(false);
-  const lastSavedFilters = useRef<EventFilters>(filters);
+  const lastSavedFilters = useRef<EventFiltersState>(filters);
 
   // Debounced callback for filters change
   const debouncedFiltersChange = useDebouncedCallback(
-    (newFilters: EventFilters) => {
+    (...args: unknown[]) => {
+      const newFilters = args[0] as EventFiltersState;
       onFiltersChange?.(newFilters);
     },
     debounceMs
@@ -153,7 +154,7 @@ export function useEventFilters({
   }, [filters]);
 
   // Update filters with validation and normalization
-  const updateFilters = useCallback((updates: Partial<EventFilters>) => {
+  const updateFilters = useCallback((updates: Partial<EventFiltersState>) => {
     setFilters(prevFilters => {
       const newFilters = { ...prevFilters, ...updates };
       
@@ -223,7 +224,7 @@ export function useEventFilters({
   const applyQuickFilter = useCallback((quickFilter: QuickFilter) => {
     // If quick filter matches current filters, clear them
     const currentlyActive = Object.entries(quickFilter.filters).every(([key, value]) => {
-      const currentValue = filters[key as keyof EventFilters];
+      const currentValue = filters[key as keyof EventFiltersState];
       if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
         return JSON.stringify(currentValue) === JSON.stringify(value);
       }
@@ -295,8 +296,18 @@ export function useEventFilters({
     
     suggestions.push(...historySuggestions);
     
+    // Try to get suggestions from mock data service
+    try {
+       
+      const { mockDataService } = require('../services/MockDataService');
+      const mockSuggestions = mockDataService.generateSearchSuggestions(query);
+      suggestions.push(...mockSuggestions);
+    } catch {
+      // Mock service not available, continue with basic suggestions
+    }
+    
     // Add phone number suggestion if query looks like a number
-    if (/^[\d\s\-\+\(\)]+$/.test(query)) {
+    if (/^[\d\s\-+()]+$/.test(query)) {
       suggestions.push({
         type: 'number',
         value: query,
@@ -304,8 +315,12 @@ export function useEventFilters({
       });
     }
     
-    // Limit total suggestions
-    return suggestions.slice(0, 5);
+    // Limit total suggestions and remove duplicates
+    const uniqueSuggestions = suggestions.filter((suggestion, index, self) => 
+      index === self.findIndex(s => s.value === suggestion.value)
+    );
+    
+    return uniqueSuggestions.slice(0, 5);
   }, [searchHistory]);
 
   // Persistence

@@ -50,7 +50,7 @@ export function usePerformanceMonitoring({
     // Get memory usage (if available)
     let memoryUsage = 0;
     if ('memory' in performance && performance.memory) {
-      memoryUsage = (performance.memory as any).usedJSHeapSize / 1024 / 1024; // MB
+      memoryUsage = (performance.memory as { usedJSHeapSize: number }).usedJSHeapSize / 1024 / 1024; // MB
     }
 
     // Add performance entry

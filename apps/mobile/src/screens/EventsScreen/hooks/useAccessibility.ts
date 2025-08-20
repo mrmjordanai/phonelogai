@@ -95,7 +95,7 @@ export function useAccessibility({
   }, [announceChanges, processAnnouncementQueue]);
 
   // Focus management
-  const setAccessibilityFocus = useCallback((ref: any) => {
+  const setAccessibilityFocus = useCallback((ref: React.RefObject<React.Component> | null) => {
     if (!isScreenReaderEnabled.current || !ref?.current) {
       return;
     }

@@ -30,7 +30,17 @@
       "Bash(node:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git branch:*)"
+      "Bash(git branch:*)",
+      "mcp__supabase-community-supabase-mcp__search_docs",
+      "WebFetch(domain:supabase.com)",
+      "mcp__desktop-commander__create_directory",
+      "Bash(npx jest:*)",
+      "Bash(awk:*)",
+      "Bash(git checkout:*)",
+      "mcp__desktop-commander__write_file",
+      "mcp__desktop-commander__edit_block",
+      "Bash(true)",
+      "Bash(timeout 30s npx expo start --non-interactive)"
     ],
     "deny": []
   }

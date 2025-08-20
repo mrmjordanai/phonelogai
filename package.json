@@ -19,6 +19,7 @@
     "clean": "rm -rf node_modules apps/mobile/node_modules packages/*/node_modules"
   },
   "devDependencies": {
+    "@types/mime-types": "^3.0.1",
     "@typescript-eslint/eslint-plugin": "^8.39.0",
     "@typescript-eslint/parser": "^8.39.0",
     "eslint": "^9.32.0",
@@ -30,5 +31,13 @@
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=8.0.0"
+  },
+  "dependencies": {
+    "csv-parser": "^3.2.0",
+    "expo-status-bar": "^2.2.3",
+    "libphonenumber-js": "^1.12.10",
+    "mime-types": "^3.0.1",
+    "winston": "^3.17.0",
+    "zod": "^4.0.17"
   }
 }

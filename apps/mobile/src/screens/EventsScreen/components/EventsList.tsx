@@ -13,8 +13,8 @@ import {
 } from 'react-native';
 import EventListItem from './EventListItem';
 import { EmptyState, LoadingEmptyState, FilterSummary } from './EmptyState';
-import { UIEvent, EventGroup, EventAction, EmptyStateType } from '../types';
-import { useScrollToTop } from '../hooks';
+import { UIEvent, EventGroup, EventAction } from '../types';
+import { useScrollToTop } from '../hooks/useInfiniteScroll';
 
 interface EventsListProps {
   events: UIEvent[];
@@ -30,8 +30,8 @@ interface EventsListProps {
   // Callbacks
   onRefresh: () => void;
   onLoadMore: () => void;
-  onEventPress: (event: UIEvent) => void;
-  onEventLongPress: (event: UIEvent, action: EventAction) => void;
+  onEventPress: (_event: UIEvent) => void;
+  onEventLongPress: (_event: UIEvent, _action: EventAction) => void;
   onRetry?: () => void;
   onClearFilters?: () => void;
   
@@ -190,7 +190,7 @@ export function EventsList({
   style
 }: EventsListProps) {
   const flatListRef = useRef<FlatList>(null);
-  const { scrollRef, scrollToTop } = useScrollToTop();
+  const { scrollRef } = useScrollToTop();
 
   // Memoized data processing
   const listData = useMemo(() => {
@@ -201,7 +201,7 @@ export function EventsList({
   }, [events, groupByDate]);
 
   // Get item layout for performance optimization
-  const getItemLayout = useCallback((data: any, index: number) => {
+  const getItemLayout = useCallback((data: ArrayLike<UIEvent | EventGroup> | null | undefined, index: number) => {
     const isHeader = data && data[index] && 'totalEvents' in data[index];
     const itemHeight = isHeader ? 44 : (compactMode ? 56 : 72);
     
@@ -213,7 +213,7 @@ export function EventsList({
   }, [compactMode]);
 
   // Key extractor
-  const keyExtractor = useCallback((item: UIEvent | EventGroup, index: number) => {
+  const keyExtractor = useCallback((item: UIEvent | EventGroup, _index: number) => {
     if ('totalEvents' in item) {
       return `header_${item.date}`;
     }
@@ -319,8 +319,10 @@ export function EventsList({
 
   // Assign ref for scroll to top functionality
   React.useImperativeHandle(scrollRef, () => ({
-    scrollToOffset: flatListRef.current?.scrollToOffset,
-    scrollToIndex: flatListRef.current?.scrollToIndex,
+    current: {
+      scrollToOffset: flatListRef.current?.scrollToOffset,
+      scrollToIndex: flatListRef.current?.scrollToIndex,
+    }
   }));
 
   return (

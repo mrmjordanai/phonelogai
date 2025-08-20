@@ -13,11 +13,11 @@ export interface CryptoKeyInfo {
   algorithm: string;
   keySize: number;
   createdAt: string;
-  purpose: 'events' | 'contacts' | 'queue' | 'sync_health';
+  purpose: 'events' | 'contacts' | 'queue' | 'sync_health' | 'settings';
 }
 
 export interface EncryptionOptions {
-  purpose?: 'events' | 'contacts' | 'queue' | 'sync_health';
+  purpose?: 'events' | 'contacts' | 'queue' | 'sync_health' | 'settings';
   keyRotationInterval?: number; // milliseconds
   compressionEnabled?: boolean;
 }
@@ -51,7 +51,7 @@ class CryptoServiceImpl {
       console.log('CryptoService initialized successfully');
     } catch (error) {
       console.error('Failed to initialize CryptoService:', error);
-      throw new Error(`CryptoService initialization failed: ${error.message}`);
+      throw new Error(`CryptoService initialization failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -88,7 +88,7 @@ class CryptoServiceImpl {
       };
     } catch (error) {
       console.error('Encryption failed:', error);
-      throw new Error(`Encryption failed: ${error.message}`);
+      throw new Error(`Encryption failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -112,7 +112,7 @@ class CryptoServiceImpl {
       return decryptedData;
     } catch (error) {
       console.error('Decryption failed:', error);
-      throw new Error(`Decryption failed: ${error.message}`);
+      throw new Error(`Decryption failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -155,7 +155,7 @@ class CryptoServiceImpl {
         results.push({ 
           id: item.id, 
           data: '', 
-          error: error.message || 'Decryption failed' 
+          error: error instanceof Error ? error.message : 'Decryption failed' 
         });
       }
     }
@@ -166,7 +166,7 @@ class CryptoServiceImpl {
   /**
    * Rotate encryption keys for enhanced security
    */
-  public async rotateKeys(purpose?: 'events' | 'contacts' | 'queue' | 'sync_health'): Promise<string[]> {
+  public async rotateKeys(purpose?: 'events' | 'contacts' | 'queue' | 'sync_health' | 'settings'): Promise<string[]> {
     const rotatedKeyIds: string[] = [];
 
     try {
@@ -176,8 +176,8 @@ class CryptoServiceImpl {
         rotatedKeyIds.push(newKeyId);
       } else {
         // Rotate all keys
-        const purposes: Array<'events' | 'contacts' | 'queue' | 'sync_health'> = 
-          ['events', 'contacts', 'queue', 'sync_health'];
+        const purposes: Array<'events' | 'contacts' | 'queue' | 'sync_health' | 'settings'> = 
+          ['events', 'contacts', 'queue', 'sync_health', 'settings'];
         
         for (const p of purposes) {
           const newKeyId = await this.createNewKey(p);
@@ -188,7 +188,7 @@ class CryptoServiceImpl {
       return rotatedKeyIds;
     } catch (error) {
       console.error('Key rotation failed:', error);
-      throw new Error(`Key rotation failed: ${error.message}`);
+      throw new Error(`Key rotation failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -202,12 +202,12 @@ class CryptoServiceImpl {
     const keysToRotate: string[] = [];
     const now = Date.now();
 
-    for (const [keyId, keyInfo] of this.keyInfoCache.entries()) {
+    this.keyInfoCache.forEach((keyInfo, keyId) => {
       const keyAge = now - new Date(keyInfo.createdAt).getTime();
       if (keyAge > this.KEY_ROTATION_INTERVAL) {
         keysToRotate.push(keyId);
       }
-    }
+    });
 
     return {
       needsRotation: keysToRotate.length > 0,
@@ -300,7 +300,7 @@ class CryptoServiceImpl {
    * Get or create encryption key for specific purpose
    */
   private async getOrCreateKey(
-    purpose: 'events' | 'contacts' | 'queue' | 'sync_health',
+    purpose: 'events' | 'contacts' | 'queue' | 'sync_health' | 'settings',
     options: EncryptionOptions
   ): Promise<CryptoKeyInfo> {
     const keyId = `${purpose}_key`;
@@ -332,7 +332,7 @@ class CryptoServiceImpl {
   /**
    * Create new encryption key
    */
-  private async createNewKey(purpose: 'events' | 'contacts' | 'queue' | 'sync_health'): Promise<string> {
+  private async createNewKey(purpose: 'events' | 'contacts' | 'queue' | 'sync_health' | 'settings'): Promise<string> {
     const keyId = `${purpose}_key`;
     const key = await this.generateRandomBytes(32); // 256-bit key
     const keyHex = this.bytesToHex(key);
@@ -404,7 +404,7 @@ class CryptoServiceImpl {
   /**
    * Load key information from storage
    */
-  private async loadKeyInfo(keyId: string): Promise<CryptoKeyInfo | null> {
+  private async loadKeyInfo(keyId: string): Promise<CryptoKeyInfo | undefined> {
     try {
       const keyInfoJson = await SecureStore.getItemAsync(this.KEY_INFO_PREFIX + keyId);
       if (keyInfoJson) {
@@ -415,7 +415,7 @@ class CryptoServiceImpl {
     } catch (error) {
       console.error(`Failed to load key info for ${keyId}:`, error);
     }
-    return null;
+    return undefined;
   }
 
   /**

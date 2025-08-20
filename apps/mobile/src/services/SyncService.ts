@@ -98,7 +98,8 @@ class SyncServiceImpl {
       console.log('SyncService initialized successfully');
     } catch (error) {
       console.error('Failed to initialize SyncService:', error);
-      throw new Error(`SyncService initialization failed: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`SyncService initialization failed: ${errorMessage}`);
     }
   }
 
@@ -184,11 +185,12 @@ class SyncServiceImpl {
 
     } catch (error) {
       console.error('Sync failed:', error);
-      result.errors.push(error.message || 'Unknown sync error');
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      result.errors.push(errorMessage || 'Unknown sync error');
       result.success = false;
       
       this.updateSyncStatus({
-        error: error.message || 'Sync failed',
+        error: errorMessage || 'Sync failed',
       });
     } finally {
       this.syncInProgress = false;
@@ -354,7 +356,8 @@ class SyncServiceImpl {
       result.success = result.failedItems === 0;
     } catch (error) {
       console.error('Batch processing failed:', error);
-      result.errors.push(error.message || 'Batch processing failed');
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      result.errors.push(errorMessage || 'Batch processing failed');
       result.failedItems = batch.length;
     }
 
@@ -411,12 +414,14 @@ class SyncServiceImpl {
 
     } catch (error) {
       console.error('Event sync failed:', error);
-      result.errors.push(error.message || 'Event sync failed');
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      result.errors.push(errorMessage || 'Event sync failed');
       result.failedItems = events.length;
 
       // Mark items as failed
       for (const event of events) {
-        await OfflineQueue.markFailed(event.id, error.message || 'Sync failed');
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        await OfflineQueue.markFailed(event.id, errorMessage || 'Sync failed');
       }
     }
 
@@ -461,11 +466,13 @@ class SyncServiceImpl {
 
     } catch (error) {
       console.error('Contact sync failed:', error);
-      result.errors.push(error.message || 'Contact sync failed');
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      result.errors.push(errorMessage || 'Contact sync failed');
       result.failedItems = contacts.length;
 
       for (const contact of contacts) {
-        await OfflineQueue.markFailed(contact.id, error.message || 'Sync failed');
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        await OfflineQueue.markFailed(contact.id, errorMessage || 'Sync failed');
       }
     }
 
@@ -510,11 +517,13 @@ class SyncServiceImpl {
 
     } catch (error) {
       console.error('Sync health update failed:', error);
-      result.errors.push(error.message || 'Sync health update failed');
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      result.errors.push(errorMessage || 'Sync health update failed');
       result.failedItems = syncHealthItems.length;
 
       for (const item of syncHealthItems) {
-        await OfflineQueue.markFailed(item.id, error.message || 'Sync failed');
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        await OfflineQueue.markFailed(item.id, errorMessage || 'Sync failed');
       }
     }
 
@@ -553,25 +562,40 @@ class SyncServiceImpl {
    */
   private async setupNetworkMonitoring(): Promise<void> {
     NetInfo.addEventListener((state: NetInfoState) => {
+      // Extract strength from cellular or wifi details
+      let strength: number | undefined;
+      if (state.details && typeof state.details === 'object') {
+        const details = state.details as any;
+        strength = details.strength || details.ssid || details.cellularGeneration;
+      }
+
       this.networkInfo = {
         isConnected: state.isConnected || false,
         connectionType: state.type,
         isWiFi: state.type === 'wifi',
         isCellular: state.type === 'cellular',
-        isMetered: state.isMetered || false,
-        strength: state.details?.strength,
+        isMetered: state.type === 'cellular', // Assume cellular is metered
+        strength,
       };
     });
 
     // Get initial network state
     const initialState = await NetInfo.fetch();
+    
+    // Extract strength from initial state
+    let initialStrength: number | undefined;
+    if (initialState.details && typeof initialState.details === 'object') {
+      const details = initialState.details as any;
+      initialStrength = details.strength || details.ssid || details.cellularGeneration;
+    }
+
     this.networkInfo = {
       isConnected: initialState.isConnected || false,
       connectionType: initialState.type,
       isWiFi: initialState.type === 'wifi',
       isCellular: initialState.type === 'cellular',
-      isMetered: initialState.isMetered || false,
-      strength: initialState.details?.strength,
+      isMetered: initialState.type === 'cellular', // Assume cellular is metered
+      strength: initialStrength,
     };
   }
 

@@ -17,7 +17,7 @@ interface EventDetailModalProps {
   visible: boolean;
   event: UIEvent | null;
   onClose: () => void;
-  onAction?: (action: EventAction, event: UIEvent) => void;
+  onAction?: (_action: EventAction, _event: UIEvent) => void;
 }
 
 interface ActionButtonProps {
@@ -163,7 +163,7 @@ export function EventDetailModal({
       } else {
         Alert.alert('Error', 'Cannot open phone app');
       }
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to initiate call');
     }
   };
@@ -183,7 +183,7 @@ export function EventDetailModal({
       } else {
         Alert.alert('Error', 'Cannot open messages app');
       }
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to open messages app');
     }
   };

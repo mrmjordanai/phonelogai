@@ -2,7 +2,7 @@ import NetInfo, {
   NetInfoState, 
   NetInfoStateType, 
   NetInfoConnectedDetails 
-} from '@react-native-netinfo/netinfo';
+} from '@react-native-community/netinfo';
 import { AppState, AppStateStatus } from 'react-native';
 
 export type ConnectionType = 'wifi' | 'cellular' | 'ethernet' | 'bluetooth' | 'wimax' | 'vpn' | 'other' | 'none';
@@ -89,7 +89,7 @@ class NetworkDetectorService {
   private appState: AppStateStatus = 'active';
   private lastOfflineTime?: number;
   private unsubscribeNetInfo?: () => void;
-  private unsubscribeAppState?: () => void;
+  private unsubscribeAppState?: { remove: () => void };
 
   private constructor() {
     this.currentState = {
@@ -154,12 +154,12 @@ class NetworkDetectorService {
       this.updateNetworkState(initialState);
 
       // Set up network state listener
-      this.unsubscribeNetInfo = NetInfo.addEventListener((state) => {
+      this.unsubscribeNetInfo = NetInfo.addEventListener((state: NetInfoState) => {
         this.updateNetworkState(state);
       });
 
       // Set up app state listener
-      this.unsubscribeAppState = AppState.addEventListener('change', (nextAppState) => {
+      this.unsubscribeAppState = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
         this.handleAppStateChange(nextAppState);
       });
 
@@ -179,7 +179,7 @@ class NetworkDetectorService {
    */
   destroy(): void {
     this.unsubscribeNetInfo?.();
-    this.unsubscribeAppState?.();
+    this.unsubscribeAppState?.remove();
     if (this.qualityCheckTimer) {
       clearInterval(this.qualityCheckTimer);
     }
@@ -303,12 +303,16 @@ class NetworkDetectorService {
       const startTime = Date.now();
       
       // Simple latency test with small request
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.config.qualityTestTimeout);
+      
       const latencyTest = fetch('https://httpbin.org/get', {
         method: 'GET',
-        timeout: this.config.qualityTestTimeout
+        signal: controller.signal
       });
 
       await latencyTest;
+      clearTimeout(timeoutId);
       const latency = Date.now() - startTime;
 
       // Estimate bandwidth based on connection type and latency
@@ -531,7 +535,7 @@ class NetworkDetectorService {
     
     if (nextAppState === 'active') {
       // Re-check network state when app becomes active
-      NetInfo.fetch().then(state => this.updateNetworkState(state));
+      NetInfo.fetch().then((state: NetInfoState) => this.updateNetworkState(state));
     }
   }
 
@@ -564,4 +568,5 @@ class NetworkDetectorService {
   }
 }
 
+export { NetworkDetectorService };
 export const NetworkDetector = NetworkDetectorService.getInstance();

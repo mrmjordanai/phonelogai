@@ -83,7 +83,7 @@ class DataNormalizerService {
       } catch (error) {
         result.errors.push({
           sourceId: callEntry.id,
-          error: error.message || 'Unknown error normalizing call entry',
+          error: error instanceof Error ? error.message : 'Unknown error normalizing call entry',
           data: callEntry,
         });
       }
@@ -135,7 +135,7 @@ class DataNormalizerService {
       } catch (error) {
         result.errors.push({
           sourceId: smsEntry.id,
-          error: error.message || 'Unknown error normalizing SMS entry',
+          error: error instanceof Error ? error.message : 'Unknown error normalizing SMS entry',
           data: smsEntry,
         });
       }
@@ -244,7 +244,7 @@ class DataNormalizerService {
       parts.push(`Duration: ${this.formatDuration(callEntry.duration)}`);
     }
 
-    if (callEntry.metadata.geocodedLocation) {
+    if ('geocodedLocation' in callEntry.metadata && callEntry.metadata.geocodedLocation) {
       parts.push(`Location: ${callEntry.metadata.geocodedLocation}`);
     }
 

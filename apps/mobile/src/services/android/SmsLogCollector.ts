@@ -1,101 +1,30 @@
-// Platform and NativeModules imports removed as they are not used in this file
-import { PermissionsManager } from '../PermissionsManager';
-import { PlatformDetector } from '../../utils/PlatformDetector';
-
-// Android Telephony.Sms column constants
-export const SMS_COLUMNS = {
-  ID: '_id',
-  THREAD_ID: 'thread_id',
-  ADDRESS: 'address',
-  PERSON: 'person',
-  DATE: 'date',
-  DATE_SENT: 'date_sent',
-  PROTOCOL: 'protocol',
-  READ: 'read',
-  STATUS: 'status',
-  TYPE: 'type',
-  REPLY_PATH_PRESENT: 'reply_path_present',
-  SUBJECT: 'subject',
-  BODY: 'body',
-  SERVICE_CENTER: 'service_center',
-  LOCKED: 'locked',
-  ERROR_CODE: 'error_code',
-  SEEN: 'seen',
-} as const;
-
-// Android Telephony.Sms.TYPE constants
-export const SMS_TYPES = {
-  ALL: 0,
-  INBOX: 1,
-  SENT: 2,
-  DRAFT: 3,
-  OUTBOX: 4,
-  FAILED: 5,
-  QUEUED: 6,
-} as const;
-
-// SMS status constants
-export const SMS_STATUS = {
-  NONE: -1,
-  COMPLETE: 0,
-  PENDING: 32,
-  FAILED: 64,
-} as const;
-
-export interface RawSmsEntry {
-  id: string;
-  threadId: string;
-  address: string; // Phone number
-  person?: string; // Contact ID
-  date: number; // Unix timestamp in milliseconds
-  dateSent: number; // When message was sent (may differ from received date)
-  protocol?: number;
-  read: boolean;
-  status: number;
-  type: number; // SMS_TYPES
-  replyPathPresent?: boolean;
-  subject?: string;
-  body: string;
-  serviceCenter?: string;
-  locked: boolean;
-  errorCode?: number;
-  seen: boolean;
-}
+import { Platform } from 'react-native';
 
 export interface ProcessedSmsEntry {
   id: string;
-  threadId: string;
   number: string;
   timestamp: Date;
-  dateSent: Date;
   direction: 'inbound' | 'outbound';
   type: 'sms';
-  content: string;
-  subject?: string;
-  isRead: boolean;
-  isSeen: boolean;
-  status: 'sent' | 'pending' | 'failed' | 'draft' | 'queued';
-  contactId?: string;
+  content?: string;
+  contactName?: string;
   metadata: {
-    rawType: number;
-    rawStatus: number;
-    protocol?: number;
-    serviceCenter?: string;
-    errorCode?: number;
-    locked: boolean;
+    source: 'file_import' | 'manual_entry';
+    threadId?: string;
   };
 }
 
-export interface SmsCollectionOptions {
+export interface SmsLogCollectionOptions {
   startDate?: Date;
   endDate?: Date;
   limit?: number;
-  offset?: number;
-  phoneNumbers?: string[];
-  includeContent?: boolean; // For privacy - allow collection without message content
-  messageTypes?: number[]; // Filter by SMS_TYPES
+  includeContent?: boolean;
 }
 
+/**
+ * Simplified SmsLogCollector for Expo managed workflow
+ * Focuses on file import and manual entry instead of native module access
+ */
 class SmsLogCollectorService {
   private static instance: SmsLogCollectorService;
 
@@ -109,235 +38,174 @@ class SmsLogCollectorService {
   }
 
   /**
-   * Check if SMS log collection is available and permissions are granted
+   * Check if SMS collection is available
+   * In simplified mode, this always returns false for native access
    */
   public async canCollectSmsLog(): Promise<boolean> {
-    if (!PlatformDetector.isAndroid) {
-      return false;
-    }
-
-    const permissions = await PermissionsManager.checkAllPermissions();
-    return permissions.sms.status === 'granted';
+    // Native SMS access not available in Expo managed workflow
+    return false;
   }
 
   /**
-   * Collect SMS log entries with optional filtering
+   * Get collection guidance for users
    */
-  public async collectSmsLog(options: SmsCollectionOptions = {}): Promise<ProcessedSmsEntry[]> {
-    if (!await this.canCollectSmsLog()) {
-      throw new Error('SMS log collection not available. Check permissions and platform support.');
-    }
-
-    try {
-      const rawEntries = await this.fetchRawSmsLog(options);
-      return rawEntries.map(entry => this.processSmsEntry(entry, options.includeContent !== false));
-    } catch (error) {
-      console.error('Error collecting SMS log:', error);
-      throw new Error(`Failed to collect SMS log: ${error.message || 'Unknown error'}`);
-    }
+  public getCollectionGuidance(): {
+    nativeAccessAvailable: boolean;
+    alternatives: string[];
+    androidInstructions: string[];
+    iosInstructions: string[];
+  } {
+    return {
+      nativeAccessAvailable: false,
+      alternatives: [
+        'Import SMS backup files',
+        'Export from SMS backup apps',
+        'Download carrier message logs',
+        'Enter key messages manually',
+      ],
+      androidInstructions: [
+        '1. Install SMS Backup & Restore app from Play Store',
+        '2. Open the app and tap "Backup"',
+        '3. Select "Local Backup" or "Google Drive"',
+        '4. Choose XML or CSV format',
+        '5. Import the backup file in PhoneLog AI',
+      ],
+      iosInstructions: [
+        '1. Use third-party SMS export apps',
+        '2. Export through iTunes backup tools',
+        '3. Request message logs from carrier',
+        '4. Use iMazing or similar tools',
+        '5. Import exported files in PhoneLog AI',
+      ],
+    };
   }
 
   /**
-   * Get SMS log count for date range
+   * Process SMS entries from imported files
+   */
+  public processImportedSmsLog(rawData: unknown[], includeContent: boolean = true): ProcessedSmsEntry[] {
+    const entries: ProcessedSmsEntry[] = [];
+
+    for (const row of rawData) {
+      try {
+        const entry = this.processSmsEntry(row as Record<string, unknown>, includeContent);
+        if (entry) {
+          entries.push(entry);
+        }
+      } catch (error) {
+        console.error('Error processing SMS entry:', error);
+      }
+    }
+
+    return entries;
+  }
+
+  /**
+   * Get SMS count estimate (always returns 0 for native access)
    */
   public async getSmsLogCount(): Promise<number> {
-    if (!await this.canCollectSmsLog()) {
-      return 0;
-    }
-
-    // This would typically use a count query to avoid loading all data
-    // In a real implementation, this would be a proper count query
-    // For now, we'll return 0 as a placeholder
     return 0;
   }
 
   /**
-   * Collect SMS log entries in batches for large datasets
-   */
-  public async *collectSmsLogBatches(
-    options: SmsCollectionOptions & { batchSize?: number } = {}
-  ): AsyncGenerator<ProcessedSmsEntry[], void, unknown> {
-    if (!await this.canCollectSmsLog()) {
-      return;
-    }
-
-    const batchSize = options.batchSize || 100;
-    let offset = options.offset || 0;
-    
-    while (true) {
-      try {
-        const batch = await this.collectSmsLog({
-          ...options,
-          limit: batchSize,
-          offset,
-        });
-
-        if (batch.length === 0) {
-          break;
-        }
-
-        yield batch;
-        
-        if (batch.length < batchSize) {
-          break; // Last batch
-        }
-
-        offset += batchSize;
-      } catch (error) {
-        console.error('Error in SMS log batch collection:', error);
-        break;
-      }
-    }
-  }
-
-  /**
-   * Get the most recent SMS timestamp
+   * Get last SMS timestamp (always returns null for native access)
    */
   public async getLastSmsTimestamp(): Promise<Date | null> {
-    if (!await this.canCollectSmsLog()) {
-      return null;
-    }
-
-    try {
-      const entries = await this.fetchRawSmsLog({ limit: 1 });
-      return entries.length > 0 ? new Date(entries[0].date) : null;
-    } catch (error) {
-      console.error('Error getting last SMS timestamp:', error);
-      return null;
-    }
+    return null;
   }
 
   /**
-   * Get SMS conversation threads
+   * Create manual SMS entry
    */
-  public async getSmsThreads(): Promise<Array<{
-    threadId: string;
-    address: string;
-    messageCount: number;
-    lastMessage: Date;
-  }>> {
-    if (!await this.canCollectSmsLog()) {
-      return [];
-    }
-
-    // This would typically use a GROUP BY query on thread_id
-    // For now, return empty array as placeholder
-    return [];
-  }
-
-  /**
-   * Fetch raw SMS data from Android ContentResolver
-   * Note: This would typically use React Native's NativeModules to access Android's Telephony.Sms content provider
-   */
-  private async fetchRawSmsLog(options: SmsCollectionOptions): Promise<RawSmsEntry[]> {
-    // In a real implementation, this would use React Native's bridge to Android
-    // For now, we'll return mock data structure to establish the interface
-
-    if (!PlatformDetector.isAndroid) {
-      return [];
-    }
-
-    // This is where we would call a native Android module
-    // Example: const result = await NativeModules.SmsLogModule.getSmsLog(options);
-    
-    // Mock implementation for interface establishment
-    console.log('SmsLogCollector: fetchRawSmsLog called with options:', options);
-    
-    // Return empty array as placeholder - real implementation would fetch from ContentResolver
-    return [];
-  }
-
-  /**
-   * Process raw SMS entry into our standardized format
-   */
-  private processSmsEntry(rawEntry: RawSmsEntry, includeContent: boolean): ProcessedSmsEntry {
-    const direction = this.determineSmsDirection(rawEntry.type);
-    const status = this.determineSmsStatus(rawEntry.type, rawEntry.status);
-
+  public createManualEntry(data: {
+    number: string;
+    timestamp: Date;
+    direction: 'inbound' | 'outbound';
+    content?: string;
+    contactName?: string;
+  }): ProcessedSmsEntry {
     return {
-      id: rawEntry.id,
-      threadId: rawEntry.threadId,
-      number: this.normalizePhoneNumber(rawEntry.address),
-      timestamp: new Date(rawEntry.date),
-      dateSent: new Date(rawEntry.dateSent),
-      direction,
+      id: `manual_sms_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      number: this.normalizePhoneNumber(data.number),
+      timestamp: data.timestamp,
+      direction: data.direction,
       type: 'sms',
-      content: includeContent ? rawEntry.body : '', // Respect privacy setting
-      subject: rawEntry.subject,
-      isRead: rawEntry.read,
-      isSeen: rawEntry.seen,
-      status,
-      contactId: rawEntry.person,
+      content: data.content,
+      contactName: data.contactName,
       metadata: {
-        rawType: rawEntry.type,
-        rawStatus: rawEntry.status,
-        protocol: rawEntry.protocol,
-        serviceCenter: rawEntry.serviceCenter,
-        errorCode: rawEntry.errorCode,
-        locked: rawEntry.locked,
+        source: 'manual_entry',
       },
     };
   }
 
   /**
-   * Determine SMS direction from Android SMS type
+   * Process raw SMS entry from imported data
    */
-  private determineSmsDirection(smsType: number): 'inbound' | 'outbound' {
-    switch (smsType) {
-      case SMS_TYPES.INBOX:
-        return 'inbound';
-      case SMS_TYPES.SENT:
-      case SMS_TYPES.OUTBOX:
-      case SMS_TYPES.DRAFT:
-      case SMS_TYPES.QUEUED:
-        return 'outbound';
-      case SMS_TYPES.FAILED:
-        return 'outbound'; // Failed messages are typically outbound
-      default:
-        return 'inbound'; // Default to inbound for unknown types
+  private processSmsEntry(rawEntry: Record<string, unknown>, includeContent: boolean): ProcessedSmsEntry | null {
+    try {
+      // Handle different possible formats from SMS backup exports
+      const number = String(rawEntry.number || rawEntry.address || rawEntry.phone || '');
+      const date = rawEntry.date || rawEntry.timestamp || rawEntry.time;
+      const type = rawEntry.type || rawEntry.direction || rawEntry.messageType;
+      const body = includeContent ? String(rawEntry.body || rawEntry.message || rawEntry.text || '') : undefined;
+
+      if (!number || !date) {
+        return null; // Skip entries without required data
+      }
+
+      const timestamp = new Date(String(date));
+      const direction = this.determineSmsDirection(String(type));
+
+      return {
+        id: `imported_sms_${timestamp.getTime()}_${this.normalizePhoneNumber(number)}`,
+        number: this.normalizePhoneNumber(number),
+        timestamp,
+        direction,
+        type: 'sms',
+        content: body,
+        contactName: String(rawEntry.contact_name || rawEntry.contactName || rawEntry.name || ''),
+        metadata: {
+          source: 'file_import',
+          threadId: String(rawEntry.thread_id || rawEntry.threadId || ''),
+        },
+      };
+    } catch (error) {
+      console.error('Error processing SMS entry:', error);
+      return null;
     }
   }
 
   /**
-   * Determine SMS status from type and status fields
+   * Determine SMS direction from various input formats
    */
-  private determineSmsStatus(smsType: number, statusCode: number): 'sent' | 'pending' | 'failed' | 'draft' | 'queued' {
-    // First check the SMS type
-    switch (smsType) {
-      case SMS_TYPES.DRAFT:
-        return 'draft';
-      case SMS_TYPES.QUEUED:
-        return 'queued';
-      case SMS_TYPES.FAILED:
-        return 'failed';
-      case SMS_TYPES.SENT:
-      case SMS_TYPES.INBOX:
-        return 'sent';
-      case SMS_TYPES.OUTBOX:
-        // Outbox - check status code
-        switch (statusCode) {
-          case SMS_STATUS.COMPLETE:
-            return 'sent';
-          case SMS_STATUS.PENDING:
-            return 'pending';
-          case SMS_STATUS.FAILED:
-            return 'failed';
-          default:
-            return 'pending';
-        }
-      default:
-        return 'sent';
+  private determineSmsDirection(type: unknown): 'inbound' | 'outbound' {
+    if (!type) return 'inbound';
+
+    const typeStr = String(type).toLowerCase();
+    
+    // SMS Backup & Restore formats
+    if (typeStr === '2' || typeStr.includes('sent') || typeStr.includes('out')) {
+      return 'outbound';
+    } else if (typeStr === '1' || typeStr.includes('received') || typeStr.includes('in')) {
+      return 'inbound';
     }
+
+    // Common text descriptions
+    if (typeStr.includes('sent') || typeStr.includes('outgoing')) {
+      return 'outbound';
+    }
+
+    return 'inbound'; // Default to inbound
   }
 
   /**
    * Normalize phone number format
    */
-  private normalizePhoneNumber(address: string): string {
-    if (!address) return '';
+  private normalizePhoneNumber(number: string): string {
+    if (!number) return '';
     
     // Remove common formatting characters
-    const normalized = address.replace(/[\s\-()+]/g, '');
+    const normalized = number.replace(/[\s\-()+]/g, '');
     
     // Handle international format
     if (normalized.startsWith('1') && normalized.length === 11) {
@@ -352,52 +220,117 @@ class SmsLogCollectorService {
   }
 
   /**
-   * Get human-readable SMS type description
+   * Get platform-specific guidance
    */
-  public getSmsTypeDescription(smsType: number): string {
-    switch (smsType) {
-      case SMS_TYPES.INBOX:
-        return 'Received';
-      case SMS_TYPES.SENT:
-        return 'Sent';
-      case SMS_TYPES.DRAFT:
-        return 'Draft';
-      case SMS_TYPES.OUTBOX:
-        return 'Outbox';
-      case SMS_TYPES.FAILED:
-        return 'Failed';
-      case SMS_TYPES.QUEUED:
-        return 'Queued';
-      default:
-        return 'Unknown';
+  public getPlatformGuidance(): {
+    platform: string;
+    smsExportSteps: string[];
+    recommendedApps: string[];
+    alternativeMethods: string[];
+  } {
+    const isAndroid = Platform.OS === 'android';
+    
+    return {
+      platform: Platform.OS,
+      smsExportSteps: isAndroid ? [
+        'Install "SMS Backup & Restore" from Google Play',
+        'Open the app and grant necessary permissions',
+        'Tap "Create a backup"',
+        'Choose backup location (local or cloud)',
+        'Select CSV or XML format',
+        'Wait for backup to complete',
+        'Import the backup file in PhoneLog AI'
+      ] : [
+        'Install third-party SMS export app',
+        'Use iTunes backup and extraction tools',
+        'Try iMazing, 3uTools, or similar software',
+        'Export messages to CSV/XML format',
+        'Transfer files to device for import'
+      ],
+      recommendedApps: isAndroid ? [
+        'SMS Backup & Restore',
+        'My Backup',
+        'Titanium Backup (root)',
+        'Super Backup'
+      ] : [
+        'iMazing',
+        '3uTools',
+        'AnyTrans',
+        'Wondershare Dr.Fone'
+      ],
+      alternativeMethods: [
+        'Manual entry of important messages',
+        'Carrier account message history',
+        'Screenshot key conversations for reference',
+        'Export from messaging apps (WhatsApp, etc.)'
+      ]
+    };
+  }
+
+  /**
+   * Parse common SMS backup formats
+   */
+  public parseSmsBackupFile(fileContent: string, format: 'csv' | 'xml' | 'json'): Record<string, unknown>[] {
+    try {
+      switch (format) {
+        case 'csv':
+          return this.parseCsvContent(fileContent);
+        case 'xml':
+          return this.parseXmlContent(fileContent);
+        case 'json':
+          return JSON.parse(fileContent);
+        default:
+          throw new Error(`Unsupported format: ${format}`);
+      }
+    } catch (error) {
+      console.error('Error parsing SMS backup file:', error);
+      return [];
     }
   }
 
   /**
-   * Get human-readable SMS status description
+   * Parse CSV content
    */
-  public getSmsStatusDescription(status: number): string {
-    switch (status) {
-      case SMS_STATUS.COMPLETE:
-        return 'Complete';
-      case SMS_STATUS.PENDING:
-        return 'Pending';
-      case SMS_STATUS.FAILED:
-        return 'Failed';
-      case SMS_STATUS.NONE:
-        return 'None';
-      default:
-        return 'Unknown';
+  private parseCsvContent(content: string): Record<string, unknown>[] {
+    const lines = content.split('\n');
+    if (lines.length < 2) return [];
+
+    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+    const rows = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
+      if (values.length === headers.length) {
+        const row: Record<string, unknown> = {};
+        headers.forEach((header, index) => {
+          row[header] = values[index];
+        });
+        rows.push(row);
+      }
     }
+
+    return rows;
   }
 
   /**
-   * Privacy-safe SMS collection (metadata only, no content)
+   * Parse XML content (basic implementation)
    */
-  public async collectSmsMetadata(options: SmsCollectionOptions = {}): Promise<ProcessedSmsEntry[]> {
-    return this.collectSmsLog({
-      ...options,
-      includeContent: false,
+  private parseXmlContent(content: string): Record<string, unknown>[] {
+    // This is a simplified XML parser for SMS backup format
+    // In a real implementation, you'd use a proper XML parser
+    const smsPattern = /<sms[^>]*>/g;
+    const matches = content.match(smsPattern) || [];
+    
+    return matches.map(match => {
+      const attrs: Record<string, unknown> = {};
+      const attrPattern = /(\w+)="([^"]*)"/g;
+      let attrMatch;
+      
+      while ((attrMatch = attrPattern.exec(match)) !== null) {
+        attrs[attrMatch[1]] = attrMatch[2];
+      }
+      
+      return attrs;
     });
   }
 }

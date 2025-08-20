@@ -19,6 +19,7 @@ export interface Event {
 export interface Contact {
   id: string;
   user_id: string;
+  line_id?: string;
   number: string;
   name?: string;
   company?: string;

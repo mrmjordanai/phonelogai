@@ -47,6 +47,14 @@ module.exports = [
         performance: 'readonly',
         // NodeJS types for React Native
         NodeJS: 'readonly',
+        // Web APIs available in React Native
+        AbortController: 'readonly',
+        Blob: 'readonly',
+        process: 'readonly',
+        global: 'readonly',
+        // Expo/React Native specific
+        AuthSession: 'readonly',
+        FormData: 'readonly',
       },
     },
     plugins: {

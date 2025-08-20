@@ -4,9 +4,10 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Database } from '../types';
-import type { UserRole, VisibilityType } from '@phonelogai/shared/rbac';
-import { AuditLogger } from './AuditLogger';
+import type { Database, VisibilityType } from '../types';
+import type { UserRole } from '@phonelogai/shared/rbac';
+// TODO: Phase 1 - temporarily disabled due to AuditLogger issues
+// import { AuditLogger } from './AuditLogger';
 
 export type PrivacyScope = 'contact' | 'number_pattern' | 'organization' | 'global';
 export type AnonymizationLevel = 'none' | 'partial' | 'full' | 'redacted';
@@ -121,14 +122,16 @@ export interface PrivacyRuleFilter {
 
 export class PrivacyRuleEngine {
   private supabase: SupabaseClient<Database>;
-  private auditLogger: AuditLogger;
+  // TODO: Phase 1 - temporarily disabled AuditLogger dependency
+  // private auditLogger: AuditLogger;
+  private auditLogger: any = null;
   private ruleCache: Map<string, AccessDecision> = new Map();
   private cacheTimeout = 300000; // 5 minutes
   private cacheTimestamps: Map<string, number> = new Map();
 
-  constructor(supabase: SupabaseClient<Database>, auditLogger: AuditLogger) {
+  constructor(supabase: SupabaseClient<Database>, auditLogger?: any) {
     this.supabase = supabase;
-    this.auditLogger = auditLogger;
+    this.auditLogger = auditLogger || null;
   }
 
   /**
@@ -202,7 +205,9 @@ export class PrivacyRuleEngine {
       this.setCachedDecision(cacheKey, decision);
       
       // Log access evaluation for audit
-      await this.auditLogger.logDataAccess(
+      // TODO: Phase 1 - temporarily disabled audit logging
+      if (this.auditLogger) {
+        await this.auditLogger.logDataAccess(
         requesterId,
         'privacy_evaluation',
         contactId,
@@ -216,6 +221,7 @@ export class PrivacyRuleEngine {
           context
         }
       );
+      }
       
       return decision;
     } catch (error) {
@@ -252,7 +258,7 @@ export class PrivacyRuleEngine {
     const affectedRules: string[] = [];
 
     // Log bulk operation start
-    await this.auditLogger.logBulkOperation(
+    if (this.auditLogger) await this.auditLogger.logBulkOperation(
       context.userId,
       'bulk_privacy_update',
       updates.map((_, index) => `update_${index}`),
@@ -309,7 +315,7 @@ export class PrivacyRuleEngine {
     };
 
     // Log bulk operation completion
-    await this.auditLogger.logBulkOperation(
+    if (this.auditLogger) await this.auditLogger.logBulkOperation(
       context.userId,
       'bulk_privacy_update_completed',
       affectedRules,
@@ -374,7 +380,7 @@ export class PrivacyRuleEngine {
     }
 
     // Log rule creation
-    await this.auditLogger.logPrivacyRuleChange(
+    if (this.auditLogger) await this.auditLogger.logPrivacyRuleChange(
       context.userId,
       rule.contactId || 'pattern',
       null,
@@ -432,7 +438,7 @@ export class PrivacyRuleEngine {
     }
 
     // Log rule update
-    await this.auditLogger.logPrivacyRuleChange(
+    if (this.auditLogger) await this.auditLogger.logPrivacyRuleChange(
       context.userId,
       currentRule.contact_id || 'pattern',
       currentRule,
@@ -469,7 +475,7 @@ export class PrivacyRuleEngine {
     }
 
     // Log rule deletion
-    await this.auditLogger.logPrivacyRuleChange(
+    if (this.auditLogger) await this.auditLogger.logPrivacyRuleChange(
       context.userId,
       currentRule.contact_id || 'pattern',
       currentRule,

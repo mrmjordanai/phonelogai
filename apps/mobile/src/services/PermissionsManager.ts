@@ -59,17 +59,17 @@ class PermissionsManagerService {
 
     // Android - check actual permissions
     const [callLogStatus, smsStatus, contactsStatus, phoneStateStatus] = await Promise.all([
-      this.checkSinglePermission(PermissionsAndroid.PERMISSIONS.READ_CALL_LOG),
-      this.checkSinglePermission(PermissionsAndroid.PERMISSIONS.READ_SMS),
-      this.checkSinglePermission(PermissionsAndroid.PERMISSIONS.READ_CONTACTS),
-      this.checkSinglePermission(PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE),
+      PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_CALL_LOG),
+      PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_SMS),
+      PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_CONTACTS),
+      PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE),
     ]);
 
     this._permissionsState = {
-      callLog: callLogStatus,
-      sms: smsStatus,
-      contacts: contactsStatus,
-      phoneState: phoneStateStatus,
+      callLog: this.createPermissionResult(callLogStatus),
+      sms: this.createPermissionResult(smsStatus),
+      contacts: this.createPermissionResult(contactsStatus),
+      phoneState: this.createPermissionResult(phoneStateStatus),
     };
 
     return this._permissionsState;
@@ -98,7 +98,8 @@ class PermissionsManagerService {
         };
       }
 
-      const shouldShowRationale = await PermissionsAndroid.shouldShowRequestPermissionRationale(permission);
+      // Note: shouldShowRequestPermissionRationale doesn't exist in current React Native types
+      const shouldShowRationale = false;
       
       return {
         status: shouldShowRationale ? 'denied' : 'undetermined',
@@ -180,10 +181,11 @@ class PermissionsManagerService {
     const results: Partial<PermissionsState> = {};
 
     for (const permission of permissions) {
-      results[permission] = await this.requestPermission(permission, showRationale);
+      const key = this.mapPermissionToKey(permission);
+      results[key] = await this.requestPermission(permission, showRationale);
       
       // If user denied with "never ask again", stop requesting more permissions
-      if (results[permission]?.status === 'never_ask_again') {
+      if (results[key]?.status === 'never_ask_again') {
         break;
       }
     }
@@ -305,16 +307,39 @@ class PermissionsManagerService {
     return { granted, denied, needsAttention };
   }
 
+  private createPermissionResult(granted: boolean): PermissionResult {
+    return {
+      status: granted ? 'granted' : 'denied',
+      canAskAgain: !granted,
+      shouldShowRationale: false
+    };
+  }
+
+  private mapPermissionToKey(permission: 'call_log' | 'sms' | 'contacts' | 'phone_state'): keyof PermissionsState {
+    switch (permission) {
+      case 'call_log':
+        return 'callLog';
+      case 'sms':
+        return 'sms';
+      case 'contacts':
+        return 'contacts';
+      case 'phone_state':
+        return 'phoneState';
+      default:
+        throw new Error(`Unknown permission: ${permission}`);
+    }
+  }
+
   private getAndroidPermission(permission: 'call_log' | 'sms' | 'contacts' | 'phone_state'): AndroidPermission {
     switch (permission) {
       case 'call_log':
-        return PermissionsAndroid.PERMISSIONS.READ_CALL_LOG;
+        return PermissionsAndroid.PERMISSIONS.READ_CALL_LOG as AndroidPermission;
       case 'sms':
-        return PermissionsAndroid.PERMISSIONS.READ_SMS;
+        return PermissionsAndroid.PERMISSIONS.READ_SMS as AndroidPermission;
       case 'contacts':
-        return PermissionsAndroid.PERMISSIONS.READ_CONTACTS;
+        return PermissionsAndroid.PERMISSIONS.READ_CONTACTS as AndroidPermission;
       case 'phone_state':
-        return PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE;
+        return PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE as AndroidPermission;
       default:
         throw new Error(`Unknown permission: ${permission}`);
     }

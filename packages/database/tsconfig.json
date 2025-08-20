@@ -1,0 +1,28 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "composite": true,
+    "declaration": true,
+    "noEmit": false,
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "skipLibCheck": true,
+    "noImplicitAny": false,
+    "strict": false
+  },
+  "include": ["src/**/*"],
+  "exclude": [
+    "dist", 
+    "node_modules", 
+    "**/*.test.ts", 
+    "**/*.test.tsx",
+    "src/security/AuditLogger.ts",
+    "src/security/ComplianceService.ts", 
+    "src/security/SecurityMonitoringService.ts"
+  ],
+  "references": [
+    { "path": "../types" }
+  ]
+}

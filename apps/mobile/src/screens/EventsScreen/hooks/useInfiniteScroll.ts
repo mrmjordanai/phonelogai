@@ -11,7 +11,7 @@ interface UseInfiniteScrollProps {
 }
 
 interface UseInfiniteScrollReturn {
-  onScroll: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
+  onScroll: (_event: NativeSyntheticEvent<NativeScrollEvent>) => void;
   onEndReached: () => void;
   onEndReachedThreshold: number;
   isLoadingMore: boolean;
@@ -159,17 +159,22 @@ export function useInfiniteScroll({
 
 // Additional hook for scroll-to-top functionality
 export function useScrollToTop() {
-  const scrollRef = useRef<any>(null);
+  const scrollRef = useRef<{ 
+    current: { 
+      scrollToOffset?: (_options: { offset: number; animated?: boolean }) => void; 
+      scrollToIndex?: (_options: { index: number; animated?: boolean }) => void; 
+    } 
+  }>(null);
 
   const scrollToTop = useCallback((animated: boolean = true) => {
-    scrollRef.current?.scrollToOffset?.({
+    scrollRef.current?.current?.scrollToOffset?.({
       offset: 0,
       animated
     });
   }, []);
 
   const scrollToIndex = useCallback((index: number, animated: boolean = true) => {
-    scrollRef.current?.scrollToIndex?.({
+    scrollRef.current?.current?.scrollToIndex?.({
       index,
       animated
     });

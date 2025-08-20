@@ -34,8 +34,8 @@ const EVENT_COLORS = {
 
 interface EventListItemProps {
   event: UIEvent;
-  onPress?: (event: UIEvent) => void;
-  onLongPress?: (event: UIEvent, action: EventAction) => void;
+  onPress?: (_event: UIEvent) => void;
+  onLongPress?: (_event: UIEvent, _action: EventAction) => void;
   showDate?: boolean;
   compact?: boolean;
   style?: ViewStyle;

@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import NetInfo from '@react-native-netinfo/';
+import NetInfo from '@react-native-community/netinfo';
 import type { 
   UserRole, 
   RBACResource, 

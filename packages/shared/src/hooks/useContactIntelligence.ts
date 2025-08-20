@@ -1,6 +1,10 @@
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@phonelogai/database';
+// TODO: Fix circular dependency in Phase 2 - temporarily commented out
+// import { supabase } from '@phonelogai/database';
+
+// Temporary placeholder for supabase client during Phase 1 infrastructure fixes
+const supabase = null as any;
 import { 
   ContactIntelligence, 
   ContactSearchResult, 

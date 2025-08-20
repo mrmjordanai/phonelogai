@@ -3,8 +3,17 @@
   "compilerOptions": {
     "strict": true,
     "paths": {
-      "@phonelogai/shared": ["../../packages/shared/src"],
-      "@phonelogai/types": ["../../packages/types/src"]
+      "@phonelogai/shared": ["../../packages/shared/dist"],
+      "@phonelogai/shared/*": ["../../packages/shared/dist/*"],
+      "@phonelogai/types": ["../../packages/types/dist"],
+      "@phonelogai/types/*": ["../../packages/types/dist/*"],
+      "@phonelogai/database": ["../../packages/database/dist"],
+      "@phonelogai/database/*": ["../../packages/database/dist/*"]
     }
-  }
+  },
+  "references": [
+    { "path": "../../packages/types" },
+    { "path": "../../packages/shared" },
+    { "path": "../../packages/database" }
+  ]
 }

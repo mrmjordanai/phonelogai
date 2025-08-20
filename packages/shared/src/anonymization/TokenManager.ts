@@ -1,7 +1,7 @@
 // Token Management for Call/SMS Intelligence Platform
 // Provides consistent pseudonymization and reversible tokenization with secure key management
 
-import crypto from 'crypto'
+import * as crypto from 'crypto'
 
 export type TokenFormat = 'uuid' | 'numeric' | 'alphanumeric' | 'hash' | 'encrypted' | 'format_preserving'
 
@@ -258,7 +258,7 @@ export class TokenManager {
     const key = await this.getEncryptionKey(keyId)
     
     const iv = crypto.randomBytes(16)
-    const cipher = crypto.createCipher('aes-256-gcm', key)
+    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv)
     
     let encrypted = cipher.update(originalValue, 'utf8', 'hex')
     encrypted += cipher.final('hex')

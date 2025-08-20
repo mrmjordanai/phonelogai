@@ -10,7 +10,14 @@ import {
 import { useAuth } from '../components/AuthProvider';
 import { Ionicons } from '@expo/vector-icons';
 
-export function SettingsScreen() {
+import { StackNavigationProp } from '@react-navigation/stack';
+import { SettingsStackParamList } from '../navigation/SettingsStack';
+
+interface SettingsScreenProps {
+  navigation: StackNavigationProp<SettingsStackParamList, 'SettingsMain'>;
+}
+
+export function SettingsScreen({ navigation }: SettingsScreenProps) {
   const { user, signOut } = useAuth();
 
   const handleSignOut = () => {
@@ -68,22 +75,22 @@ export function SettingsScreen() {
           <SettingItem
             title="Profile"
             icon="person"
-            onPress={() => {}}
+            onPress={() => navigation.navigate('ProfileSettings')}
           />
           <SettingItem
             title="Privacy"
             icon="shield-checkmark"
-            onPress={() => {}}
+            onPress={() => navigation.navigate('PrivacySettings')}
           />
           <SettingItem
             title="Notifications"
             icon="notifications"
-            onPress={() => {}}
+            onPress={() => navigation.navigate('NotificationSettings')}
           />
           <SettingItem
             title="Data & Storage"
             icon="server"
-            onPress={() => {}}
+            onPress={() => navigation.navigate('DataStorageSettings')}
           />
         </View>
 
@@ -91,12 +98,12 @@ export function SettingsScreen() {
           <SettingItem
             title="Help & Support"
             icon="help-circle"
-            onPress={() => {}}
+            onPress={() => navigation.navigate('HelpSupport')}
           />
           <SettingItem
             title="About"
             icon="information-circle"
-            onPress={() => {}}
+            onPress={() => navigation.navigate('About')}
           />
         </View>
 

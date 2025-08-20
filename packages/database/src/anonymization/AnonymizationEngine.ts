@@ -3,7 +3,7 @@
 
 import type { Database, Event, Contact, AuditLogInsert } from '../types'
 import { supabase, supabaseAdmin } from '../client'
-import crypto from 'crypto'
+import * as crypto from 'crypto'
 
 // Anonymization strategy types
 export type AnonymizationTechnique = 
@@ -361,8 +361,12 @@ export class AnonymizationEngine {
         break
       case 'encrypted':
         const key = await this.getEncryptionKey(keyId)
-        const cipher = crypto.createCipher('aes-256-gcm', key)
-        token = cipher.update(String(value), 'utf8', 'hex') + cipher.final('hex')
+        const iv = crypto.randomBytes(16)
+        const cipher = crypto.createCipheriv('aes-256-gcm', key, iv)
+        let encrypted = cipher.update(String(value), 'utf8', 'hex')
+        encrypted += cipher.final('hex')
+        const authTag = cipher.getAuthTag()
+        token = `${iv.toString('hex')}:${encrypted}:${authTag.toString('hex')}`
         break
       default:
         token = crypto.randomUUID()
@@ -665,11 +669,11 @@ export class AnonymizationEngine {
   cleanupJobs(maxAge: number = 24 * 60 * 60 * 1000): void {
     const cutoff = new Date(Date.now() - maxAge)
     
-    for (const [jobId, job] of this.activeJobs.entries()) {
+    Array.from(this.activeJobs.entries()).forEach(([jobId, job]) => {
       if (job.completedAt && job.completedAt < cutoff) {
         this.activeJobs.delete(jobId)
       }
-    }
+    })
   }
 }
 
